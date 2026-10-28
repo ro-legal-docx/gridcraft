@@ -1,0 +1,94 @@
+name: Codex PR 2836 cross-platform verification
+run-name: GridCraft PR 2836 at 2b2a3f09
+on:
+  push:
+    branches: [codex/ci-gridcraft-2836-20261028]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'ro-legal-docx/gridcraft'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - name: Check out this verification harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          clean: false
+      - name: Check out the exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ro-legal-docx/gridcraft
+          ref: 2b2a3f0988acb50e521972db6f1c453dc447cdad
+          path: source
+          persist-credentials: false
+          clean: false
+      - name: Verify source identity and scope
+        run: |
+          test "$(git -C source rev-parse HEAD)" = 2b2a3f0988acb50e521972db6f1c453dc447cdad
+          printf '%s\n' 'Source: `2b2a3f0988acb50e521972db6f1c453dc447cdad`' 'Scope: model/calculator/XLSX units, engine integration, static/wasm gates and synthetic native CLI prefix checks. Two deleting tests excluded. No full workspace CI, servers, Excel GUI acceptance or SonarCloud.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Cache Rust artifacts
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            source/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: codex-prefixes-${{ runner.os }}-rust195-${{ hashFiles('source/Cargo.lock') }}
+      - name: Install Rust
+        run: rustup toolchain install 1.95.0 --profile minimal --no-self-update --component clippy --component rustfmt --target wasm32-unknown-unknown
+      - name: Format and static checks
+        working-directory: source
+        run: |
+          cargo +1.95.0 fmt --all -- --check
+          cargo +1.95.0 clippy -p gridcraft-model -p gridcraft-calc -p gridcraft-xlsx --all-targets --locked -- -D warnings
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cargo +1.95.0 clippy -p gridcraft-engine --lib --test it --locked -- -D warnings
+            printf '%s\n' 'Windows engine library-test target excluded: pre-existing Unix-only symlink test (upstream PR #2713). Production library and integration target are checked. No patch is injected into source.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            cargo +1.95.0 clippy -p gridcraft-engine --all-targets --locked -- -D warnings
+          fi
+      - name: Model, calculator and XLSX unit tests
+        working-directory: source
+        run: cargo +1.95.0 test -p gridcraft-model -p gridcraft-calc -p gridcraft-xlsx --lib --locked
+      - name: Engine synthetic lifecycle and integration tests
+        working-directory: source
+        run: cargo +1.95.0 test -p gridcraft-engine --test it --locked -- --skip csv_export_budget
+      - name: Asset and layering gates
+        working-directory: source
+        run: |
+          cargo +1.95.0 xtask assets
+          cargo +1.95.0 xtask layers
+      - name: Engine WebAssembly check
+        working-directory: source
+        run: cargo +1.95.0 check -p gridcraft-engine --target wasm32-unknown-unknown --locked
+      - name: Build the native CLI
+        working-directory: source
+        run: cargo +1.95.0 build -p gridcraft-cli --locked
+      - name: Native synthetic prefix probe
+        run: python ci/function-prefix-probe.py prefix-probe source/target/debug/gridcraft-cli
+      - name: Lockfile unchanged
+        working-directory: source
+        run: git diff --exit-code -- Cargo.lock
+      - name: Upload synthetic results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gridcraft-2836-${{ matrix.os }}
+          path: prefix-probe/results
+          if-no-files-found: ignore
