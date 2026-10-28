@@ -1,0 +1,71 @@
+name: Codex PR 2824 cross-platform verification
+run-name: GridCraft PR 2824 at 00c6aaa7
+on:
+  push:
+    branches: [codex/ci-gridcraft-2824-20261028-115120z]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'ro-legal-docx/gridcraft'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_BUILD_JOBS: "2"
+    steps:
+      - name: Check out this verification harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          clean: false
+      - name: Check out the exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ro-legal-docx/gridcraft
+          ref: 00c6aaa7d35c80cf8a647635620978e846ddc6a5
+          path: source
+          persist-credentials: false
+          clean: false
+      - name: Verify source identity and scope
+        run: |
+          test "$(git -C source rev-parse HEAD)" = 00c6aaa7d35c80cf8a647635620978e846ddc6a5
+          printf '%s\n' 'Source: `00c6aaa7d35c80cf8a647635620978e846ddc6a5`' 'Scope: calculator/engine tests and native CLI compilation on Linux/Windows. Two deleting tests excluded. No full workspace CI, MCP servers or SonarCloud.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Install Rust
+        run: rustup toolchain install 1.95.0 --profile minimal --no-self-update --component clippy --component rustfmt --target wasm32-unknown-unknown
+      - name: Format and static checks
+        working-directory: source
+        run: |
+          cargo +1.95.0 fmt --all -- --check
+          cargo +1.95.0 clippy -p gridcraft-calc -p gridcraft-engine --all-targets --locked -- -D warnings
+      - name: Calculator unit tests
+        working-directory: source
+        run: cargo +1.95.0 test -p gridcraft-calc --lib --locked
+      - name: Engine synthetic lifecycle and integration tests
+        working-directory: source
+        run: cargo +1.95.0 test -p gridcraft-engine --test it --locked -- --skip csv_export_budget
+      - name: Asset and layering gates
+        working-directory: source
+        run: |
+          cargo +1.95.0 xtask assets
+          cargo +1.95.0 xtask layers
+      - name: Engine WebAssembly check
+        working-directory: source
+        run: cargo +1.95.0 check -p gridcraft-engine --target wasm32-unknown-unknown --locked
+      - name: Build the native CLI
+        working-directory: source
+        run: cargo +1.95.0 build -p gridcraft-cli --locked
+      - name: Lockfile unchanged
+        working-directory: source
+        run: git diff --exit-code -- Cargo.lock
