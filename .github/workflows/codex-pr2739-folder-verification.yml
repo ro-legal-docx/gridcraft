@@ -1,0 +1,88 @@
+name: Codex PR 2739 folder verification
+run-name: GridCraft PR 2739 at 7677c121
+on:
+  push:
+    branches: [codex/ci-gridcraft-2739-alignment-20261029]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.repository == 'ro-legal-docx/gridcraft'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_BUILD_JOBS: "2"
+      TMPDIR: ${{ github.workspace }}/tmp
+      TMP: ${{ github.workspace }}/tmp
+      TEMP: ${{ github.workspace }}/tmp
+    steps:
+      - name: Check out the verification harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          clean: false
+      - name: Check out the exact PR source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ro-legal-docx/gridcraft
+          ref: 7677c12103aec77f51f190a71a2c762292fe9a63
+          path: source
+          persist-credentials: false
+          clean: false
+      - name: Verify source and declare scope
+        run: |
+          mkdir -p "$TMPDIR"
+          test "$(git -C source rev-parse HEAD)" = 7677c12103aec77f51f190a71a2c762292fe9a63
+          printf '%s\n' 'Source: `7677c12103aec77f51f190a71a2c762292fe9a63`' 'Scoped tests only: path-policy source compiled directly, in-memory MCP handlers and pure CLI parser. CLI integration targets are compiled but never executed. No MCP server process, fixture deletion, full workspace test suite or SonarCloud scan.' 'Windows engine library-test target has a pre-existing unguarded Unix symlink test. Compile the unchanged production policy module directly to exercise its own Windows tests without injecting a fix or claiming the complete engine library-test target passes.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Cache Rust artifacts
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: |
+            source/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: codex-folder-${{ runner.os }}-rust195-${{ hashFiles('source/Cargo.lock') }}
+          restore-keys: |
+            codex-prefixes-${{ runner.os }}-rust195-
+      - name: Install Rust
+        run: rustup toolchain install 1.95.0 --profile minimal --no-self-update --component clippy --component rustfmt --target wasm32-unknown-unknown
+      - name: Format and strict static checks
+        working-directory: source
+        run: |
+          cargo +1.95.0 fmt --all -- --check
+          cargo +1.95.0 clippy --locked -p gridcraft-engine --lib --test it -- -D warnings
+          cargo +1.95.0 clippy --locked -p gridcraft-mcp -p gridcraft-cli --all-targets -- -D warnings
+      - name: Exact policy source tests
+        working-directory: source
+        run: |
+          rustc +1.95.0 --edition=2024 --test crates/engine/src/file_access.rs -o "$TMPDIR/file-access-tests.exe"
+          "$TMPDIR/file-access-tests.exe"
+      - name: In-memory handler and parser tests
+        working-directory: source
+        run: |
+          cargo +1.95.0 test --locked -p gridcraft-mcp --lib folder_confinement_tests::
+          cargo +1.95.0 test --locked -p gridcraft-cli --bin gridcraft-cli mcp_root_arguments
+      - name: Compile CLI integration tests without starting MCP
+        working-directory: source
+        run: cargo +1.95.0 test --locked -p gridcraft-cli --test it --no-run
+      - name: Asset, layering and WebAssembly gates
+        working-directory: source
+        run: |
+          cargo +1.95.0 xtask assets
+          cargo +1.95.0 xtask layers
+          cargo +1.95.0 check --locked -p gridcraft-engine -p gridcraft-mcp --target wasm32-unknown-unknown
+      - name: Lockfile unchanged
+        working-directory: source
+        run: git diff --exit-code -- Cargo.lock
