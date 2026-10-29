@@ -1,5 +1,5 @@
 name: Codex PR 2836 cross-platform verification
-run-name: GridCraft PR 2836 at 8560adc3
+run-name: GridCraft PR 2836 at c935a87b
 on:
   push:
     branches: [codex/ci-gridcraft-2836-20261028]
@@ -24,6 +24,11 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: "0"
       CARGO_PROFILE_TEST_DEBUG: "0"
       CARGO_BUILD_JOBS: "2"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+      TMPDIR: ${{ github.workspace }}/tmp
+      TMP: ${{ github.workspace }}/tmp
+      TEMP: ${{ github.workspace }}/tmp
     steps:
       - name: Check out this verification harness
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -34,14 +39,15 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: ro-legal-docx/gridcraft
-          ref: 8560adc3d66c22951d383caa9ca6b850b12e16a5
+          ref: c935a87bc99bda18f24466d7c53f7c8f1e7ee881
           path: source
           persist-credentials: false
           clean: false
       - name: Verify source identity and scope
         run: |
-          test "$(git -C source rev-parse HEAD)" = 8560adc3d66c22951d383caa9ca6b850b12e16a5
-          printf '%s\n' 'Source: `8560adc3d66c22951d383caa9ca6b850b12e16a5`' 'Scope: model/calculator/XLSX units, engine integration, static/wasm gates and synthetic native CLI prefix checks. Two deleting tests excluded. No full workspace CI, servers, Excel GUI acceptance or SonarCloud.' >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p "$TMPDIR"
+          test "$(git -C source rev-parse HEAD)" = c935a87bc99bda18f24466d7c53f7c8f1e7ee881
+          printf '%s\n' 'Source: `c935a87bc99bda18f24466d7c53f7c8f1e7ee881`' 'Scope: model/calculator/XLSX units, engine integration, static/wasm gates and synthetic native CLI prefix checks. Two deleting tests excluded. No full workspace CI, servers, Excel GUI acceptance or SonarCloud.' >> "$GITHUB_STEP_SUMMARY"
       - name: Cache Rust artifacts
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
