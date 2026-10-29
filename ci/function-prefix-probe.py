@@ -29,11 +29,20 @@ known_mixed=[
  '_xlfn._xlws.FILTER(B1:B3,B1:B3>0)+FILTER(C1:C3,C1:C3>0)',
 ]
 rows += [f'<row r="{i}"><c r="A{i}"><f>{escape(f)}</f><v>7</v></c></row>' for i,f in enumerate(known_mixed,13)]
+trim_cases=[
+ ('_xlfn._TRO_ALL(A1:B2)+TRIMRANGE(C1:D2,1,1)+_xlfn.TRIMRANGE(E1:F2,1,1)', '_xlfn.TRIMRANGE(A1:B2,3,3)+TRIMRANGE(C1:D2,1,1)+_xlfn.TRIMRANGE(E1:F2,1,1)'),
+ ('TRIMRANGE(C1:D2,1,1)+_xlfn._TRO_ALL(A1:B2)+_xlfn.TRIMRANGE(E1:F2,1,1)', 'TRIMRANGE(C1:D2,1,1)+_xlfn.TRIMRANGE(A1:B2,3,3)+_xlfn.TRIMRANGE(E1:F2,1,1)'),
+ ('TRIMRANGE(_xlfn._TRO_ALL(A1:B2),1,1)+_xlfn.TRIMRANGE(C1:D2,1,1)', 'TRIMRANGE(_xlfn.TRIMRANGE(A1:B2,3,3),1,1)+_xlfn.TRIMRANGE(C1:D2,1,1)'),
+ ('_xlfn._TRO_ALL(TRIMRANGE(A1:B2,1,1))+_xlfn.TRIMRANGE(C1:D2,1,1)', '_xlfn.TRIMRANGE(TRIMRANGE(A1:B2,1,1),3,3)+_xlfn.TRIMRANGE(C1:D2,1,1)'),
+ ('A1.:.B2+TRIMRANGE(C1:D2,1,1)+_xlfn.TRIMRANGE(E1:F2,1,1)', '_xlfn.TRIMRANGE(A1:B2,3,3)+TRIMRANGE(C1:D2,1,1)+_xlfn.TRIMRANGE(E1:F2,1,1)'),
+]
+rows += [f'<row r="{i}"><c r="A{i}"><f>{escape(f)}</f><v>7</v></c></row>' for i,(f,expected_text) in enumerate(trim_cases,17)]
 source=out/'input.xlsx'
 with zipfile.ZipFile(seed) as z,zipfile.ZipFile(source,'x',compression=zipfile.ZIP_DEFLATED) as target:
  for name in z.namelist():target.writestr(name,(f'<worksheet xmlns="{ns["s"]}"><sheetData>'+''.join(rows)+'</sheetData></worksheet>').encode() if name=='xl/worksheets/sheet1.xml' else z.read(name))
 expected={f'A{i}':f for i,f in enumerate(raw,1)};expected.update(A10='_xlfn.SYNTHETICFUTURE(B10)',A11='_xlfn.SYNTHETICFUTURE(B11)',A12='_xlfn.SYNTHETICARRAY(B12)')
 expected.update({f'A{i}':f for i,f in enumerate(known_mixed,13)})
+expected.update({f'A{i}':f for i,(original_text,f) in enumerate(trim_cases,17)})
 sha=hashlib.sha256(source.read_bytes()).hexdigest();env=os.environ.copy();env.update(XDG_CACHE_HOME=str(out/'cache'),XDG_CONFIG_HOME=str(out/'config'),XDG_DATA_HOME=str(out/'data'))
 def read_formulas(path):
  with zipfile.ZipFile(path) as z:xml=ET.fromstring(z.read('xl/worksheets/sheet1.xml'))
@@ -74,6 +83,6 @@ assert actual['C1']==formula and actual['C2']=='XLOOKUP(D2,$A$1:$A$2,$B$1:$B$2)+
 assert number(changed,'C1')==40 and number(changed,'C2')==30
 reopened=out/'known-reopened.xlsx';actual=run(changed,reopened,['cell.set={"cell":"Z20","input":"2"}']);assert actual['C1']==formula and number(reopened,'C1')==40 and number(reopened,'C2')==30
 assert hashlib.sha256(known.read_bytes()).hexdigest()==known_sha
-record={'known_mixed_values':{'source_sha256':known_sha,'source_unchanged':True,'original':30,'after_input_change':40,'copied_cell':30,'reopened':40},'synthetic_only':True,'source_sha256':sha,'source_unchanged':True,'cli_sha256':hashlib.sha256(cli.read_bytes()).hexdigest(),'cases':results,'values_not_qualified':'unsupported functions still require the separate saved-cache policy; this probe checks formula namespaces, not calculation'}
+record={'trim_cases_checked':len(trim_cases),'known_mixed_values':{'source_sha256':known_sha,'source_unchanged':True,'original':30,'after_input_change':40,'copied_cell':30,'reopened':40},'synthetic_only':True,'source_sha256':sha,'source_unchanged':True,'cli_sha256':hashlib.sha256(cli.read_bytes()).hexdigest(),'cases':results,'values_not_qualified':'unsupported functions still require the separate saved-cache policy; this probe checks formula namespaces, not calculation'}
 with (out/'results.json').open('x') as f:json.dump(record,f,indent=2)
 print(json.dumps(record,indent=2))
