@@ -138,6 +138,7 @@ const EXACT_TEXT_WIDTHS: usize = 2_000;
 pub(super) fn autofit_cols(s: &mut Session, p: &Json) -> Result<Json> {
     let (si, lines) = line_targets(s, p, false)?;
     let measure = s.text_width.clone();
+    let loc = s.display_locale.clone();
     edit(s, |cx| {
         let Some(sh) = cx.wb.sheet(si) else { return Ok(Json::Null) };
         let mut widths = Vec::new();
@@ -155,7 +156,7 @@ pub(super) fn autofit_cols(s: &mut Session, p: &Json) -> Result<Json> {
                     }
                     let id = sh.style_id(cell);
                     let st = cx.wb.styles.get(id);
-                    let text = crate::display::cell_text(&cx.wb, sh, cell);
+                    let text = crate::display::cell_text_in(&cx.wb, sh, cell, &loc);
                     for line in text.lines() {
                         let w = match &measure {
                             Some(m) => {

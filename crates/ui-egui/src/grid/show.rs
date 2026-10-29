@@ -403,7 +403,18 @@ fn paint_panes(input: PanesInput<'_>, cf: &mut CfCache) -> Vec<PaneQuad> {
             continue;
         }
         let p = painter.with_clip_rect(*clip);
-        paint_quadrant(QuadrantPaint { painter: &p, geo, workbook: wb, sheet_index: si, sheet: sh, rows: *rows, cols: *cols, cf, tokens: t });
+        paint_quadrant(QuadrantPaint {
+            painter: &p,
+            geo,
+            workbook: wb,
+            sheet_index: si,
+            sheet: sh,
+            rows: *rows,
+            cols: *cols,
+            cf,
+            tokens: t,
+            locale: &app.session.display_locale,
+        });
         paint_selection(SelectionPaintInput { painter: &p, geo, sheet: sh, selection: sel, outline, tokens: t, app, rows: *rows, cols: *cols });
     }
     // Freeze lines.

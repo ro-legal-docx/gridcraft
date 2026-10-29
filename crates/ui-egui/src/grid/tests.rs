@@ -145,7 +145,7 @@ fn conditional_number_format_reaches_the_cell_text() {
     let text = |row: u32, cf: &mut CfCache| {
         let c = CellRef::new(row, 0);
         let (lk, _) = look(&wb, 0, sh, c, cf);
-        display_text(&wb, sh, c, &sh.value(c), &lk.style, 200.0, 7.0).0
+        display_text(&wb, sh, c, &sh.value(c), &lk.style, 200.0, 7.0, &Default::default()).0
     };
     assert_eq!(text(0, &mut cf), "1");
     assert_eq!(text(1, &mut cf), "3.00");
