@@ -63,7 +63,14 @@ jobs:
         run: |
           cargo +1.95.0 fmt --all -- --check
           cargo +1.95.0 clippy --locked -p gridcraft-engine --lib --test it -- -D warnings
-          cargo +1.95.0 clippy --locked -p gridcraft-mcp -p gridcraft-cli --all-targets -- -D warnings
+          cargo +1.95.0 clippy --locked -p gridcraft-mcp --all-targets -- -D warnings
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            test "$(git rev-parse HEAD:apps/gridcraft-cli/src/check.rs)" = 5fc37b14ce9aa11ba331c36bd6746179c0f2b45e
+            cargo +1.95.0 clippy --locked -p gridcraft-cli --all-targets -- -D warnings -A clippy::only_used_in_recursion
+            printf '%s\n' 'Windows CLI Clippy exception: only_used_in_recursion in unchanged check.rs::walk (seen is used for inode checks only under cfg(unix)). Source blob matches upstream base 45f5ab18: 5fc37b14ce9aa11ba331c36bd6746179c0f2b45e. All other warnings remain denied; no source mutation.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            cargo +1.95.0 clippy --locked -p gridcraft-cli --all-targets -- -D warnings
+          fi
       - name: Exact policy source tests
         working-directory: source
         run: |
