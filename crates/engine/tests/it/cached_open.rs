@@ -309,3 +309,90 @@ fn cached_open_protects_legacy_array_followers_without_stored_values() {
         assert_eq!(value(&s, "A2"), Value::Number(2.0), "replacing the whole array remains allowed");
     }
 }
+
+/// A legacy array whose follower content lives only in the saved spill cache.
+fn legacy_array_clear_fixture(cached: bool, filtered: bool) -> Json {
+    let mut wb = Workbook::new();
+    let area = gridcraft_core::RangeRef::parse("A1:B3").unwrap();
+    let mut f = Formula::new("SYNTHETIC_UNSUPPORTED_ARRAY()");
+    f.array = Some(area);
+    let mut anchor = Cell::formula(f);
+    anchor.value = Value::Number(17.0);
+    let sh = wb.sheet_mut(0).unwrap();
+    sh.set_cell(area.start, anchor);
+    sh.spill_ranges.insert(area.start, area);
+    if cached {
+        sh.spill.insert(CellRef::parse("B2").unwrap(), Value::Number(42.0));
+        sh.spill.insert(CellRef::parse("A3").unwrap(), Value::Number(31.0));
+    }
+    sh.set_value(CellRef::parse("Z20").unwrap(), Value::Number(99.0));
+    if filtered {
+        for (at, text) in [("C1", "Flag"), ("C2", "keep"), ("C3", "hide")] {
+            sh.set_value(CellRef::parse(at).unwrap(), Value::from(text));
+        }
+        sh.autofilter = Some(gridcraft_model::AutoFilter {
+            range: gridcraft_core::RangeRef::parse("C1:C3").unwrap(),
+            criteria: vec![(0, gridcraft_model::FilterCriterion::Values { values: vec!["keep".into()], blanks: false })],
+        });
+        sh.rows.entry(2).or_default().hidden = true;
+    }
+    let bytes = gridcraft_xlsx::write_xlsx(&wb).unwrap();
+    json!({"name": "synthetic-array-clear.xlsx", "base64": gridcraft_engine::io::base64_encode(&bytes)})
+}
+
+/// Delete/Clear All refuse partial arrays, including missing followers and gapped selections.
+#[test]
+fn cached_open_clear_legacy_arrays_checks_the_selection() {
+    for command in ["edit.clearContents", "edit.clearAll"] {
+        for cached in [false, true] {
+            let mut s = Session::new();
+            s.execute("file.open", legacy_array_clear_fixture(cached, false)).unwrap();
+            for range in ["B2", "A1", "A1:B2", "A1:A3,B1,B3", "Z20,B2"] {
+                let before = s.doc().unwrap().wb.clone();
+                let error = s.execute(command, json!({"range": range})).unwrap_err();
+                assert!(error.to_string().contains("part of an array"), "{error}");
+                assert!(std::sync::Arc::ptr_eq(&before, &s.doc().unwrap().wb));
+                assert_eq!(value(&s, "Z20"), Value::Number(99.0));
+            }
+            s.execute("edit.clearFormats", json!({"range": "B2"})).unwrap();
+            assert_eq!(value(&s, "B2"), if cached { Value::Number(42.0) } else { Value::Empty });
+            for range in ["A1:B3", "A1:A3,B1:B3", "A1:B2,A2:B3"] {
+                s.execute(command, json!({"range": range})).unwrap();
+                for at in ["A1", "B2", "A3"] {
+                    assert_eq!(value(&s, at), Value::Empty, "{command}: {range}: {at}");
+                }
+                let sh = s.doc().unwrap().wb.sheet(0).unwrap();
+                assert!(sh.spill.is_empty() && sh.spill_ranges.is_empty());
+                s.execute("edit.undo", json!({})).unwrap();
+                assert_eq!(value(&s, "A1"), Value::Number(17.0));
+                assert_eq!(value(&s, "B2"), if cached { Value::Number(42.0) } else { Value::Empty });
+            }
+            s.execute(command, json!({"range": "Z20"})).unwrap();
+            assert_eq!(value(&s, "Z20"), Value::Empty);
+            assert_eq!(value(&s, "A1"), Value::Number(17.0));
+        }
+    }
+}
+
+/// Filter-hidden rows are skipped, so a nominal whole-array clear may still be partial.
+#[test]
+fn cached_open_clear_legacy_arrays_respects_filtered_rows() {
+    for command in ["edit.clearContents", "edit.clearAll"] {
+        let mut s = Session::new();
+        // Load the saved filter without issuing a structural command that fully recalculates.
+        s.execute("file.open", legacy_array_clear_fixture(true, true)).unwrap();
+        assert_eq!(value(&s, "A3"), Value::Number(31.0));
+        assert!(s.doc().unwrap().wb.sheet(0).unwrap().is_row_filtered(2));
+        let before = s.doc().unwrap().wb.clone();
+        let error = s.execute(command, json!({"range": "A1:B3"})).unwrap_err();
+        assert!(error.to_string().contains("part of an array"), "{error}");
+        assert!(std::sync::Arc::ptr_eq(&before, &s.doc().unwrap().wb));
+        s.execute(command, json!({"range": "A3:B3"})).unwrap();
+        assert_eq!(value(&s, "A3"), Value::Number(31.0));
+        s.execute("data.clearFilter", json!({})).unwrap();
+        s.execute("home.hideRows", json!({"rows": "3:3"})).unwrap();
+        s.execute(command, json!({"range": "A1:B3"})).unwrap();
+        assert_eq!(value(&s, "A1"), Value::Empty);
+        assert_eq!(value(&s, "A3"), Value::Empty);
+    }
+}

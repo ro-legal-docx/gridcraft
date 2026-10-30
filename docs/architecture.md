@@ -80,7 +80,10 @@ ordinary cells, so a later full recalculation can spill without colliding with i
 Export walks stored spill rows and matching cached entries rather than expanding the
 declared area, so sparse results beyond a million positions survive. Legacy-array edit
 protection checks declared ranges even when a follower has no cached value. Formatting
-and replacement of the entire array remain allowed. Only stored values are retained;
+and replacement of the entire array remain allowed. Clear Contents and Clear All validate
+the selected footprint before editing, even when the cache has no ordinary follower cells.
+A union of selected areas may cover the whole array; filtered-out rows are not cleared and
+therefore cannot contribute to full coverage. Only stored values are retained;
 absent values are not invented or reconstructed.
 This does not establish cache freshness or reconstruct absent cached spill data. Saved filename-dependent results, including `CELL("filename")`, can also retain a previous file name or an earlier cached error until explicit recalculation.
 
@@ -194,6 +197,7 @@ rpm, tarball), FreeBSD, and web (WASM; WebGPU or WebGL2). Release workflows in
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Reject partial Clear Contents/Clear All selections inside legacy arrays using declared ranges, including missing cached followers; allow whole-array selection unions and respect filter-hidden rows. |
 | 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
 | 2026-10-30 | trivial | Clarify that XLSX fullCalcOnLoad does not override cached open; explicit recalculate: true is required for full recalculation on open. |
