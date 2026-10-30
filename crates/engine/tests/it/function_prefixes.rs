@@ -217,3 +217,62 @@ fn imported_prefixes_follow_binding_changes_through_name_manager() {
     reopened.execute("file.open", json!({"name":"synthetic-renamed-bindings.xlsx","base64":saved["base64"]})).unwrap();
     assert!(saved_xml(&mut reopened).contains("_xlfn.XLOOKUP(2,A:A,B:B)"));
 }
+
+/// Explicit namespace edits override imported occurrence order, including known-function aliases.
+#[test]
+fn explicitly_edited_prefix_order_survives_save_undo_and_reopen() {
+    for (name, prefix) in [("XLOOKUP", "_xlfn."), ("FILTER", "_xlfn._xlws."), ("SYNTHETICFUTURE", "_xlfn.")] {
+        let mut wb = Workbook::new();
+        let mut formula = Formula::new(&format!("{name}(A1,A2,A3)+{name}(B1,B2,B3)"));
+        let namespace = if prefix == "_xlfn." { FileFunctionPrefix::Xlfn } else { FileFunctionPrefix::XlfnXlws };
+        formula.file_functions.insert(name.into(), vec![None, Some(namespace)]);
+        wb.sheet_mut(0).unwrap().set_cell(CellRef::parse("Z1").unwrap(), Cell::formula(formula));
+        let bytes = gridcraft_xlsx::write_xlsx(&wb).unwrap();
+        let mut s = Session::new();
+        s.execute("file.open", json!({"name":"synthetic-explicit-prefixes.xlsx","base64":gridcraft_engine::io::base64_encode(&bytes)})).unwrap();
+        let original = format!("{name}(A1,A2,A3)+{prefix}{name}(B1,B2,B3)");
+        assert!(saved_xml(&mut s).contains(&original));
+        let edited = format!("{prefix}{name}(A1,A2,A3)+{name}(B1,B2,B3)");
+        s.execute("cell.set", json!({"cell":"Z1","input":format!("={edited}")})).unwrap();
+        let xml = saved_xml(&mut s);
+        assert!(xml.contains(&edited), "{name}: {xml}");
+        assert!(!xml.contains(&original), "{name}: {xml}");
+        s.execute("edit.undo", json!({})).unwrap();
+        assert!(saved_xml(&mut s).contains(&original));
+        s.execute("edit.redo", json!({})).unwrap();
+        assert!(saved_xml(&mut s).contains(&edited));
+        let saved = s.execute("file.saveBytes", json!({"format":"xlsx"})).unwrap();
+        let mut reopened = Session::new();
+        reopened.execute("file.open", json!({"name":"synthetic-explicit-reopened.xlsx","base64":saved["base64"]})).unwrap();
+        assert!(saved_xml(&mut reopened).contains(&edited));
+    }
+}
+
+/// A newly typed namespace is preserved even without a prior imported formula; closing is automatic.
+#[test]
+fn explicit_prefix_on_new_formula_survives_automatic_parenthesis_closing() {
+    let mut s = Session::new();
+    s.new_workbook();
+    s.execute("cell.set", json!({"cell":"B1","input":"=_XlFn.SYNTHETICFUTURE(A1"})).unwrap();
+    let xml = saved_xml(&mut s);
+    assert!(xml.contains("_xlfn.SYNTHETICFUTURE(A1)"), "{xml}");
+}
+
+/// Prefix-looking string contents are data, so argument edits still inherit imported metadata.
+#[test]
+fn namespace_text_in_a_string_does_not_override_imported_function_spelling() {
+    let mut s = session();
+    s.execute("cell.set", json!({"cell":"B1","input":"=SYNTHETICFUTURE(\"_xlfn.OTHER(A1)\")"})).unwrap();
+    let xml = saved_xml(&mut s);
+    assert!(xml.contains("<f>_xlfn.SYNTHETICFUTURE("), "{xml}");
+}
+
+/// A prefix on one function must not suppress another function's required canonical XLSX prefix.
+#[test]
+fn other_functions_keep_canonical_namespaces_when_one_prefix_is_explicit() {
+    let mut s = Session::new();
+    s.new_workbook();
+    s.execute("cell.set", json!({"cell":"Z1","input":"=_xlfn.SYNTHETICFUTURE(A1)+XLOOKUP(A1,A2,A3)"})).unwrap();
+    let xml = saved_xml(&mut s);
+    assert!(xml.contains("_xlfn.SYNTHETICFUTURE(A1)+_xlfn.XLOOKUP(A1,A2,A3)"), "{xml}");
+}

@@ -23,6 +23,10 @@ calls keep their existing behavior; this does not change function calculation su
 The active table-rename command preserves imported namespaces. All expression rewrites,
 including Name Manager edits, discard stale occurrence metadata when local LET/LAMBDA
 bindings change; XLSX output then chooses the canonical global/local function spelling.
+Explicit namespaces typed or pasted into the formula editor override the previous per-call
+sequence for that function. Unmarked functions keep inherited or canonical XLSX spelling;
+namespace-looking string contents do not override metadata. Automatic parenthesis closing
+retains the explicit namespace as well.
 Namespaces are assigned to the original expression calls before file-only operator calls are
 generated. Model-normalized trim calls are aligned on import; mismatched occurrence counts
 fall back to canonical spelling instead of attaching a namespace to another call.
