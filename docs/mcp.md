@@ -126,10 +126,20 @@ widens a root. Dangling links are refused.
 Root flags cannot be combined with `--connect`: the desktop control channel does
 not enforce these roots, so the CLI refuses that configuration rather than
 advertising a restriction it cannot provide. This is a file policy for the
-headless MCP server, not an OS sandbox. It does not defend against another local
-process changing symlinks between validation and opening a file. The path policy
-follows the implementation accepted in [DeckCraft #247](https://github.com/storytold/deckcraft/pull/247).
-On macOS and Linux the containment rule is equivalent. On Windows GridCraft
+headless MCP server, not an OS sandbox. Native roots retain open directory handles.
+After resolving and checking a path, reads open it relative to the retained read
+root. Saves pin the authorized parent directory, then create a fresh temporary
+file exclusively and rename it through that same handle. Replacing a checked
+path component with a symlink cannot redirect these operations outside the root.
+A pre-existing `.sctmp` file or symlink is left untouched and does not block a save.
+The parent directory is an authorized object: a later rename of that directory
+does not revoke its open handle. Hard links, other local programs' own access,
+and a process-wide OS sandbox remain outside this document-I/O policy.
+
+The canonical path policy follows the implementation accepted in
+[DeckCraft #247](https://github.com/storytold/deckcraft/pull/247); the additional
+native handle-based I/O uses `cap-std`, with native-only `getrandom` temporary names.
+On macOS and Linux the component-containment rule is equivalent. On Windows GridCraft
 compares canonical components exactly rather than applying Unicode lowercasing,
 so distinct directories on case-sensitive volumes cannot be conflated. A casing
 mismatch can conservatively refuse access. Windows path display also preserves

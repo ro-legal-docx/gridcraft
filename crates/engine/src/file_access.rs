@@ -4,8 +4,8 @@
 //!
 //! `gridcraft-cli mcp --automation-read-root <dir> --automation-write-root <dir>` confines the
 //! files an agent's commands reach. [`AutomationRoots`] holds the two folders. While they are in
-//! force, every path a command reads goes through [`check_read`] and every path it writes through
-//! [`check_write`]. Both checks sit in [`crate::io::read_file`] and [`crate::io::write_file`], the
+//! force, every document open and save applies their read or write policy. The checks sit behind
+//! [`crate::io::read_file`] and [`crate::io::write_file`], the
 //! only functions the engine opens user-named files with (`file.open`, `file.saveAs`,
 //! `file.export`, `file.exportPdf`, `insert.picture`, CSV and text import), so a new command that
 //! reads or writes through them is confined without further work.
@@ -22,9 +22,9 @@
 //! [`confine_process`] (`gridcraft-cli mcp`), except inside [`unconfined`] (what the person at the
 //! keyboard does). Without roots nothing is checked.
 //!
-//! A path is checked, then opened: a process that can change the folders in between (swapping in
-//! a link) can still win that race. The roots keep an agent to the files it was given; they don't
-//! guard against other programs on the computer.
+//! Native I/O resolves each checked path relative to an open root directory. Opens and atomic
+//! saves use capability-relative operations, so replacing a checked component with an escaping
+//! symlink cannot redirect them. This is a document-I/O policy, not a process sandbox.
 
 use std::cell::RefCell;
 use std::ffi::OsString;
@@ -51,6 +51,9 @@ struct Root {
     resolved: PathBuf,
     /// The same without Windows' `\\?\` prefix, for people.
     shown: PathBuf,
+    /// Retain the authorized directory object instead of reopening its ambient path for I/O.
+    #[cfg(not(target_arch = "wasm32"))]
+    dir: cap_std::fs::Dir,
 }
 
 impl Root {
@@ -63,7 +66,15 @@ impl Root {
         let resolved = std::fs::canonicalize(path)
             .and_then(|p| if p.is_dir() { Ok(p) } else { Err(std::io::ErrorKind::NotADirectory.into()) })
             .map_err(|e| format!("cannot open the automation {kind} root `{}`: {e}", path.display()))?;
-        Ok(Self { shown: plain(resolved.clone()), resolved })
+        #[cfg(not(target_arch = "wasm32"))]
+        let dir = cap_std::fs::Dir::open_ambient_dir(&resolved, cap_std::ambient_authority())
+            .map_err(|e| format!("cannot open the automation {kind} root `{}`: {e}", path.display()))?;
+        Ok(Self {
+            shown: plain(resolved.clone()),
+            resolved,
+            #[cfg(not(target_arch = "wasm32"))]
+            dir,
+        })
     }
 }
 
@@ -107,23 +118,33 @@ impl AutomationRoots {
 
     /// May the file or folder at `path` be read (or written)? `Err` says why not.
     pub fn check(&self, path: &str, access: Access) -> Result<(), String> {
+        self.checked(path, access).map(|_| ())
+    }
+
+    /// Resolve a path to the selected root plus a relative name; native I/O uses that root's
+    /// retained handle, so the ambient pathname is never reopened after this check.
+    fn checked(&self, path: &str, access: Access) -> Result<(&Root, PathBuf), String> {
         let root = match access {
             Access::Read => self.read.as_ref(),
             Access::Write => self.write.as_ref(),
         };
-        let Some(Root { resolved: folder, shown }) = root else {
+        let Some(root) = root else {
             return match access {
                 Access::Read => Err(format!("automation filesystem access is not granted: read authority is absent: {path}")),
                 Access::Write => Err(format!("automation filesystem access is not granted: write authority is absent: {path}")),
             };
         };
-        if inside(&resolve(path)?, folder) {
-            return Ok(());
+        let resolved = resolve(path)?;
+        if inside(&resolved, &root.resolved) {
+            return resolved
+                .strip_prefix(&root.resolved)
+                .map(|p| (root, p.to_path_buf()))
+                .map_err(|e| format!("automation path rejected: {path}: {e}"));
         }
-        let root = shown.display();
+        let shown = root.shown.display();
         match access {
-            Access::Read => Err(format!("automation path rejected: outside the read root {root}: {path}")),
-            Access::Write => Err(format!("automation path rejected: outside the write root {root}: {path}")),
+            Access::Read => Err(format!("automation path rejected: outside the read root {shown}: {path}")),
+            Access::Write => Err(format!("automation path rejected: outside the write root {shown}: {path}")),
         }
     }
 }
@@ -194,6 +215,55 @@ pub fn check_read(path: &str) -> Result<(), String> {
 /// May `path` be written here? Always, without roots in force.
 pub fn check_write(path: &str) -> Result<(), String> {
     current().map_or(Ok(()), |r| r.check(path, Access::Write))
+}
+
+/// Open a document relative to the retained read root, or use ordinary I/O when unconfined.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn open_read(path: &str) -> Result<std::fs::File, String> {
+    let result = match current() {
+        Some(roots) => {
+            let (root, relative) = roots.checked(path, Access::Read)?;
+            root.dir.open(relative).map(cap_std::fs::File::into_std)
+        }
+        None => std::fs::File::open(path),
+    };
+    result.map_err(|e| format!("{path}: {e}"))
+}
+
+/// Pin the save's parent directory before creating its temporary file. Both creation and
+/// rename are relative to this same handle, even if its ambient path is replaced meanwhile.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn write_parent(path: &str) -> Result<(cap_std::fs::Dir, OsString), String> {
+    let result = match current() {
+        Some(roots) => {
+            let (root, _) = roots.checked(path, Access::Write)?;
+            // Atomic rename replaces the requested leaf, not its symlink target. Resolve only
+            // the parent here, after also checking the leaf above, to preserve that behavior.
+            let absolute = std::path::absolute(path).map_err(|e| format!("{path}: {e}"))?;
+            let name = absolute.file_name().ok_or_else(|| format!("{path}: not a file path"))?;
+            let parent = absolute.parent().ok_or_else(|| format!("{path}: no parent directory"))?;
+            let parent = std::fs::canonicalize(parent).map_err(|e| format!("{path}: {e}"))?;
+            let relative = parent
+                .strip_prefix(&root.resolved)
+                .map_err(|_| format!("automation path rejected: outside the write root {}: {path}", root.shown.display()))?
+                .join(name);
+            parent_in(&root.dir, &relative)
+        }
+        None => {
+            let absolute = std::path::absolute(path).map_err(|e| format!("{path}: {e}"))?;
+            let name = absolute.file_name().ok_or_else(|| format!("{path}: not a file path"))?.to_os_string();
+            let parent = absolute.parent().ok_or_else(|| format!("{path}: no parent directory"))?;
+            cap_std::fs::Dir::open_ambient_dir(parent, cap_std::ambient_authority()).map(|dir| (dir, name))
+        }
+    };
+    result.map_err(|e| format!("{path}: {e}"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn parent_in(dir: &cap_std::fs::Dir, relative: &Path) -> std::io::Result<(cap_std::fs::Dir, OsString)> {
+    let name = relative.file_name().ok_or(std::io::ErrorKind::InvalidInput)?.to_os_string();
+    let parent = relative.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
+    dir.open_dir(parent).map(|dir| (dir, name))
 }
 
 /// `path` made absolute with its links followed; for a path that doesn't exist (yet), its nearest
@@ -463,5 +533,53 @@ mod tests {
         for f in ["console", "com10", "COM0", "lpt", "a.csv", "nul-x"] {
             assert!(!is_device_name(f), "{f}");
         }
+    }
+
+    /// Replacing a checked path component must not redirect the later capability-relative open.
+    #[cfg(unix)]
+    #[test]
+    fn checked_read_and_save_parent_reject_a_subsequent_escaping_symlink() {
+        let (base, roots) = folders("checked-swap");
+        std::fs::write(base.join("in/sub/secret.csv"), "inside").unwrap();
+        std::fs::create_dir_all(base.join("out/sub")).unwrap();
+        let input = s(base.join("in/sub/secret.csv"));
+        let output = s(base.join("out/sub/book.xlsx"));
+        let (read, relative_read) = roots.checked(&input, Access::Read).unwrap();
+        let (write, relative_write) = roots.checked(&output, Access::Write).unwrap();
+        for kind in ["in", "out"] {
+            std::fs::rename(base.join(kind).join("sub"), base.join(kind).join("retained-sub")).unwrap();
+            std::os::unix::fs::symlink(base.join("outside"), base.join(kind).join("sub")).unwrap();
+        }
+        assert!(read.dir.open(relative_read).is_err());
+        assert!(parent_in(&write.dir, &relative_write).is_err());
+        assert_eq!(std::fs::read_to_string(base.join("outside/secret.csv")).unwrap(), "x");
+        assert!(!base.join("outside/book.xlsx").exists());
+        assert_eq!(std::fs::read_to_string(base.join("in/retained-sub/secret.csv")).unwrap(), "inside");
+    }
+
+    /// An outside symlink into the write root cannot authorize replacing that outside entry.
+    #[cfg(unix)]
+    #[test]
+    fn write_parent_rejects_an_outside_leaf_alias_into_the_root() {
+        let (base, roots) = folders("outside-alias");
+        let target = base.join("out/book.xlsx");
+        std::fs::write(&target, "inside sentinel").unwrap();
+        let alias = base.join("outside/alias.xlsx");
+        std::os::unix::fs::symlink(&target, &alias).unwrap();
+        let result = confine(Some(&roots), || crate::io::write_file(alias.to_str().unwrap(), b"must not be saved"));
+        assert!(result.is_err());
+        assert!(std::fs::symlink_metadata(&alias).unwrap().file_type().is_symlink());
+        assert_eq!(std::fs::read_to_string(target).unwrap(), "inside sentinel");
+    }
+
+    /// Ordinary inside-pointing links remain usable after resolving them to root-relative names.
+    #[cfg(unix)]
+    #[test]
+    fn native_read_accepts_an_inside_pointing_symlink() {
+        let (base, roots) = folders("inside-alias");
+        let alias = base.join("in/sub/link.csv");
+        std::os::unix::fs::symlink(base.join("in/a.csv"), &alias).unwrap();
+        let bytes = confine(Some(&roots), || crate::io::read_file(alias.to_str().unwrap())).unwrap();
+        assert_eq!(bytes, b"a,b");
     }
 }

@@ -108,24 +108,26 @@ fn folder_confinement_symlinks_and_temporary_save_paths_are_checked() {
     symlink(base.join("outside/private.csv"), base.join("allowed/new.xlsx.sctmp")).unwrap();
     let mut b = confined(&base, true);
     assert!(execute(&mut b, "file.open", json!({"path":base.join("allowed/link.csv")})).unwrap_err().contains("outside the read root"));
-    for name in ["away/new.xlsx", "dangling.xlsx", "new.xlsx"] {
+    for name in ["away/new.xlsx", "dangling.xlsx"] {
         let err = execute(&mut b, "file.save", json!({"path":base.join("allowed").join(name)})).unwrap_err();
         assert!(err.contains("outside the write root") || err.contains("link that leads nowhere"), "{err}");
     }
+    execute(&mut b, "file.save", json!({"path":base.join("allowed/new.xlsx")})).unwrap();
     assert!(std::fs::symlink_metadata(base.join("allowed/new.xlsx.sctmp")).unwrap().file_type().is_symlink());
     assert_eq!(std::fs::read_to_string(base.join("outside/private.csv")).unwrap(), "outside,91\n");
 }
 
 #[test]
-fn folder_confinement_existing_temporary_file_survives_save_refusal() {
+fn folder_confinement_existing_temporary_file_survives_successful_save() {
     let base = fixture("existing-temporary");
     let destination = base.join("allowed/new.xlsx");
     let temporary = base.join("allowed/new.xlsx.sctmp");
     std::fs::write(&temporary, b"existing temporary content").unwrap();
     let mut b = confined(&base, true);
-    assert!(execute(&mut b, "file.save", json!({"path":destination})).is_err());
+    execute(&mut b, "file.save", json!({"path":destination})).unwrap();
     assert_eq!(std::fs::read(&temporary).unwrap(), b"existing temporary content");
-    assert!(!destination.exists());
+    assert!(destination.is_file());
+    execute(&mut b, "file.open", json!({"path":destination})).unwrap();
 }
 
 /// The operator may keep inputs readable while allowing writes only to a nested output folder.

@@ -1,6 +1,6 @@
 # Gaps
 
-> **Automation confinement update:** 2026-10-29 · Headless MCP accepts operator-selected read/write roots, applied before `--in` and at file I/O. Generic commands, imports, exports and temporary save paths share the checks. Desktop `--connect` confinement and race-resistant OS sandboxing remain outside this change. Readiness estimates unchanged. See [MCP file access](mcp.md#restrict-file-access-to-a-folder).
+> **Automation confinement update:** 2026-10-30 · Headless MCP accepts operator-selected read/write roots, applied before `--in` and at file I/O. Native reads and atomic saves bind their operations to open authorized directory handles; exclusive random temporary names prevent stale `.sctmp` files from blocking saves. Desktop `--connect` confinement and process-wide OS sandboxing remain outside this change. Readiness estimates unchanged. See [MCP file access](mcp.md#restrict-file-access-to-a-folder).
 
 > **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-27 · **Change:** minor (§8: PivotTable Enable show details; earlier: PivotTable Show Details) · **Target:** Microsoft Excel (Microsoft 365)
 
