@@ -59,3 +59,55 @@ fn locale_independent_built_ins_keep_their_id() {
         assert_eq!(back, builtin_format(builtin).unwrap());
     }
 }
+
+/// Original synthetic package: a date in a conditional differential number format.
+fn dxf_date_round_trip(id: Option<u32>, code: &str, builtin: bool) {
+    let attr = id.map(|id| format!(" numFmtId=\"{id}\"")).unwrap_or_default();
+    let styles = format!(
+        r#"<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+        <fonts count="1"><font><sz val="11"/><name val="Carlito"/></font></fonts>
+        <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
+        <borders count="1"><border/></borders><cellXfs count="1"><xf/></cellXfs>
+        <dxfs count="1"><dxf><numFmt{attr} formatCode="{code}"/></dxf></dxfs></styleSheet>"#
+    );
+    let rels = r#"<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>"#;
+    let sheet = r#"<sheetData><row r="1"><c r="A1"><v>45292.5</v></c></row></sheetData>
+        <conditionalFormatting sqref="A1"><cfRule type="cellIs" dxfId="0" priority="1" operator="greaterThan"><formula>0</formula></cfRule></conditionalFormatting>"#;
+    let source = super::minimal(sheet, &[("xl/styles.xml", &styles)], rels, "");
+    let (mut wb, _) = read_xlsx(&source).unwrap();
+    for _ in 0..3 {
+        let sh = wb.sheet(0).unwrap();
+        assert_eq!(sh.value(CellRef::new(0, 0)), Value::Number(45292.5));
+        let CfRule::CellIs { style, .. } = &sh.cond_formats[0].rule else { panic!("expected cellIs") };
+        assert_eq!(style.num_fmt.as_str(), code);
+        assert_eq!(style.num_fmt.is_literal_short_date(), !builtin, "id={id:?}, code={code}");
+        let out = write_xlsx(&wb).unwrap();
+        let xml = styles_xml(&out);
+        let root = crate::xml::parse(xml.as_bytes()).unwrap();
+        let written = root.child("dxfs").unwrap().child("dxf").unwrap().child("numFmt").unwrap();
+        let written_id = written.attr_u32("numFmtId").unwrap();
+        if builtin {
+            assert_eq!(Some(written_id), id);
+        } else {
+            assert!(written_id >= 164, "custom date collapsed to built-in {written_id}");
+        }
+        assert_eq!(written.attr("formatCode"), Some(code));
+        wb = read_xlsx(&out).unwrap().0;
+    }
+}
+
+#[test]
+fn dxf_builtin_short_dates_keep_regional_identity_and_builtin_ids() {
+    for (id, code) in [(14, "m/d/yyyy"), (22, "m/d/yyyy h:mm")] {
+        dxf_date_round_trip(Some(id), code, true);
+    }
+}
+
+#[test]
+fn dxf_custom_and_missing_ids_keep_literal_short_dates() {
+    for id in [Some(164), Some(165), None] {
+        for code in ["m/d/yyyy", "m/d/yyyy h:mm"] {
+            dxf_date_round_trip(id, code, false);
+        }
+    }
+}

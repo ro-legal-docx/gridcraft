@@ -17,7 +17,9 @@ adds Romanian conventions and addresses the numeric short-date case reported in
   No system preferences are changed. The locale is captured at application startup.
 - Only the short-date family (built-ins 14/22) follows the regional date pattern. An imported
   custom format with code `m/d/yyyy` or `m/d/yyyy h:mm` remains literal and is saved with a
-  custom format ID. Case and escaped-separator aliases are retained too. Numeric separators
+  custom format ID. Differential formats (`dxf`, used by conditional formatting) respect their
+  declared built-in/custom ID as well; a missing ID with an explicit code is treated as custom.
+  Case and escaped-separator aliases are retained too. Numeric separators
   still follow the display locale, while quoted literals and stored currency symbols stay intact.
 - Grid painting, Page Layout painting and column AutoFit use the same session locale.
   `snapshot --locale ro-RO` overrides the system locale before executing commands.

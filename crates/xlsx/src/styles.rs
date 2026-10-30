@@ -387,7 +387,10 @@ fn read_dxf(x: &El, palette: &[u32], fmts: &HashMap<u32, String>) -> Style {
     }
     if let Some(n) = x.child("numFmt") {
         if let Some(code) = n.attr("formatCode") {
-            s.num_fmt = NumFmt::custom(code);
+            s.num_fmt = match n.attr_u32("numFmtId") {
+                Some(id) if id < 164 => NumFmt::new(code),
+                _ => NumFmt::custom(code),
+            };
         } else if let Some(id) = n.attr_u32("numFmtId") {
             s.num_fmt = num_fmt_code(id, fmts);
         }
