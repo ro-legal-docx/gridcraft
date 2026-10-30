@@ -1,6 +1,6 @@
 # GridCraft roadmap
 
-> **Imported formula results update:** 2026-10-28 · Cache-preserving open, missing-result calculation and explicit recalculation build on #2308 by @mrzv. Saved results can be stale; structural edits still perform full recalculation. Readiness estimates unchanged.
+> **Imported formula results update:** 2026-10-30 · Cache-preserving open, missing-result calculation and explicit recalculation build on #2308 by @mrzv. Saved results can be stale; structural edits still perform full recalculation. Readiness estimates unchanged.
 >
 **Stage: alpha** · next: beta, ~25 points of "ready for real work" and ~160–240 h away
 
@@ -254,6 +254,7 @@ recalc; readiness estimates and migration qualification are unchanged.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
 | 2026-10-28 | trivial | Keep the stale formula-cache warning visible ahead of overflowing import warnings; a synthetic XLSX regression verifies the visible notice, retained warnings and overflow count |
 | 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |
 | 2026-10-25 | minor | Progress log: AutoSum over a selected row, and a selection's empty last row and column |

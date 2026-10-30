@@ -1,6 +1,6 @@
 # File-format parity
 
-> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-28 · **Change:** minor (cache-preserving imported formula open, explicit recalculation, cache warnings and synthetic lifecycle coverage) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
+> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-30 · **Change:** minor (cache-preserving imported formula open, explicit recalculation, cache warnings and synthetic lifecycle coverage) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
 
 Every format Excel opens or saves, with GridCraft's read and write support, fidelity and tests.
 Part of [target-app-parity.md](target-app-parity.md). **File formats: ~50% ready, 80–120 h**
@@ -15,6 +15,12 @@ Legacy scalar `INDEX(range, MATCH(...))` formulas remain ordinary formulas on sa
 shared formulas are expanded during import (`array_export.rs`, #1505).
 
 ### Saved formula results on open (#2770)
+
+XLSX legacy and dynamic arrays retain their stored follower values and declared ranges in
+spill storage. They are not ordinary cells that block later recalculation. Synthetic controls
+cover unsupported cached anchors, zero, empty text, false and errors across unrelated edits
+and save/reopen, plus row/column shifts of legacy array ranges. Missing cache entries are not
+reconstructed and no native Excel corpus qualification is claimed.
 
 `file.open` preserves nonempty formula caches, fills only absent results, and reports a
 stale-cache warning. `recalculate: true` requests a full recalculation. Normal argument
@@ -121,6 +127,7 @@ refresh. Counted under features (Get & Transform, ~10% ready), not here.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
 | 2026-10-28 | trivial | Keep the stale formula-cache warning visible ahead of overflowing import warnings; a synthetic XLSX regression verifies the visible notice, retained warnings and overflow count |
 | 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |
 | 2026-10-21 | minor | HTML (Save as Web Page) writes pictures (`data:` URI `<img>`) and charts (inline SVG from the chart crate's drawing primitives, text included) at their anchors; the table uses the sheet's column widths and row heights when the sheet has either, and output for sheets without pictures or charts is unchanged |

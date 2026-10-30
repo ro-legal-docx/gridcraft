@@ -74,6 +74,10 @@ existing full recalculation. Neither option makes unsupported functions calculab
 Unresolved function calls retain their explicit argument dependencies but are not made
 volatile merely because the function is absent. Workbook-defined calls and supported
 dynamic references still recalculate normally. Structural edits still use a full recalc.
+XLSX import now retains the file's stored legacy/dynamic array follower values in
+`Sheet::spill`, with bounded declared ranges in `spill_ranges`. They remain separate from
+ordinary cells, so a later full recalculation can spill without colliding with imported caches.
+Only stored values are retained; absent values are not invented or reconstructed.
 This does not establish cache freshness or reconstruct absent cached spill data. Saved filename-dependent results, including `CELL("filename")`, can also retain a previous file name or an earlier cached error until explicit recalculation.
 
 ## UI building blocks
@@ -186,6 +190,7 @@ rpm, tarball), FreeBSD, and web (WASM; WebGPU or WebGL2). Release workflows in
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
 | 2026-10-30 | trivial | Clarify that XLSX fullCalcOnLoad does not override cached open; explicit recalculate: true is required for full recalculation on open. |
 | 2026-10-25 | trivial | The hidden names that hold macros are `_gc_macro_<n>_<k>` |
 | 2026-10-24 | minor | Macro engine on the building blocks (`macros/`, `cmd/macros.rs`) |

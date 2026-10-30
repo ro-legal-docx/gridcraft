@@ -229,3 +229,50 @@ fn cached_open_filename_results_follow_explicit_recalculation_policy() {
     assert_eq!(value(&recalculated, "A2"), Value::from(sheet_name.as_str()));
     assert_eq!(value(&recalculated, "B1"), Value::Error(CellError::Name));
 }
+
+/// Legacy and dynamic array follower caches survive open, unrelated edits and save/reopen.
+#[test]
+fn cached_open_retains_array_followers_without_recalculating_the_anchor() {
+    for legacy in [false, true] {
+        let mut wb = Workbook::new();
+        let mut formula = Formula::new("SYNTHETIC_UNSUPPORTED_ARRAY()");
+        let range = gridcraft_core::RangeRef::parse("A1:A5").unwrap();
+        if legacy {
+            formula.array = Some(range);
+        } else {
+            formula.dynamic = true;
+        }
+        let mut anchor = Cell::formula(formula);
+        anchor.value = Value::Number(17.0);
+        let sheet = wb.sheet_mut(0).unwrap();
+        sheet.set_cell(CellRef::parse("A1").unwrap(), anchor);
+        sheet.spill_ranges.insert(range.start, range);
+        let followers = [("A2", Value::Number(0.0)), ("A3", Value::from("")), ("A4", Value::Bool(false)), ("A5", Value::Error(CellError::Div0))];
+        for (at, value) in &followers {
+            sheet.spill.insert(CellRef::parse(at).unwrap(), value.clone());
+        }
+        sheet.set_cell(CellRef::parse("B1").unwrap(), Cell::formula(Formula::new("A2+1")));
+        let bytes = gridcraft_xlsx::write_xlsx(&wb).unwrap();
+        let mut opened = Session::new();
+        opened.execute("file.open", json!({"name": "synthetic-array.xlsx", "base64": gridcraft_engine::io::base64_encode(&bytes)})).unwrap();
+        for round in 0..2 {
+            assert_eq!(value(&opened, "A1"), Value::Number(17.0), "{legacy}: do not evaluate the unsupported cached anchor");
+            assert_eq!(value(&opened, "B1"), Value::Number(1.0), "missing formulas read the retained follower cache");
+            let sheet = opened.doc().unwrap().wb.sheet(0).unwrap();
+            assert_eq!(sheet.spill_ranges.get(&range.start), Some(&range));
+            assert_eq!(sheet.cell(range.start).unwrap().formula.as_ref().unwrap().array, legacy.then_some(range));
+            for (at, expected) in &followers {
+                let at = CellRef::parse(at).unwrap();
+                assert_eq!(sheet.value(at), *expected, "legacy={legacy}, round={round}, {at:?}");
+                assert!(sheet.cell(at).is_none(), "cached followers must not block a later spill");
+            }
+            if round == 0 {
+                opened.execute("cell.set", json!({"cell": "Z20", "input": "1"})).unwrap();
+                let saved = opened.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+                let mut reopened = Session::new();
+                reopened.execute("file.open", json!({"name": "synthetic-array-roundtrip.xlsx", "base64": saved["base64"]})).unwrap();
+                opened = reopened;
+            }
+        }
+    }
+}
