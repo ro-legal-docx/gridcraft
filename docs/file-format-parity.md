@@ -1,6 +1,6 @@
 # File-format parity
 
-> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-29 · **Change:** minor (preserve mixed bare/prefixed known-function calls; #2836 review follow-up) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
+> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-30 · **Change:** minor (preserve namespaces through current table renames; guard direct LET/LAMBDA rewrites; #2836) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
 
 Every format Excel opens or saves, with GridCraft's read and write support, fidelity and tests.
 Part of [target-app-parity.md](target-app-parity.md). **File formats: ~50% ready, 80–120 h**
@@ -20,6 +20,9 @@ Mixed bare and prefixed occurrences of known functions (for example `XLOOKUP` /
 `_xlfn.XLOOKUP` and `FILTER` / `_xlfn._xlws.FILTER`) retain their per-call spelling on
 import, unrelated/argument edits, copying, undo/redo and repeated saves. Uniform canonical
 calls keep their existing behavior; this does not change function calculation support.
+The active table-rename command preserves imported namespaces. All expression rewrites,
+including Name Manager edits, discard stale occurrence metadata when local LET/LAMBDA
+bindings change; XLSX output then chooses the canonical global/local function spelling.
 Namespaces are assigned to the original expression calls before file-only operator calls are
 generated. Model-normalized trim calls are aligned on import; mismatched occurrence counts
 fall back to canonical spelling instead of attaching a namespace to another call.

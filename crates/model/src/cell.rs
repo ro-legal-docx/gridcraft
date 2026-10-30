@@ -62,31 +62,10 @@ impl Formula {
     pub fn from_expr(e: Expr) -> Formula {
         Formula { text: gridcraft_formula::print(&e), expr: Some(Arc::new(e)), array: None, dynamic: false, file_functions: BTreeMap::new() }
     }
-    /// Rewrite references while keeping imported call namespaces. Array/dynamic metadata stays
-    /// under the caller's existing policy, as with [`Self::from_expr`].
+    /// Rewrite an expression while keeping imported call namespaces only when call counts and
+    /// local LET/LAMBDA bindings still match. Array/dynamic metadata stays under the caller's
+    /// existing policy, as with [`Self::from_expr`].
     pub fn rewrite_expr(&self, e: Expr) -> Formula {
-        let mut file_functions = BTreeMap::new();
-        if !self.file_functions.is_empty() {
-            let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-            e.walk(&mut |node| {
-                if let Expr::Call(name, _) = node {
-                    let count = counts.entry(name.to_ascii_uppercase()).or_default();
-                    *count = count.saturating_add(1);
-                }
-            });
-            for (name, count) in counts {
-                if let Some(prefixes) = self.file_functions.get(&name)
-                    && count == prefixes.len()
-                {
-                    file_functions.insert(name, prefixes.clone());
-                }
-            }
-        }
-        Formula { file_functions, ..Self::from_expr(e) }
-    }
-    /// Preserve source call namespaces on argument edits, but never attach a global namespace
-    /// to a new local LET/LAMBDA call after its binding structure changes.
-    pub fn rewrite_input_expr(&self, e: Expr) -> Formula {
         if self.file_functions.is_empty() {
             return Self::from_expr(e);
         }
@@ -94,6 +73,25 @@ impl Formula {
         if (has_local_bindings(&old) || has_local_bindings(&e)) && binding_shape(&old) != binding_shape(&e) {
             return Self::from_expr(e);
         }
+        let mut file_functions = BTreeMap::new();
+        let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+        e.walk(&mut |node| {
+            if let Expr::Call(name, _) = node {
+                let count = counts.entry(name.to_ascii_uppercase()).or_default();
+                *count = count.saturating_add(1);
+            }
+        });
+        for (name, count) in counts {
+            if let Some(prefixes) = self.file_functions.get(&name)
+                && count == prefixes.len()
+            {
+                file_functions.insert(name, prefixes.clone());
+            }
+        }
+        Formula { file_functions, ..Self::from_expr(e) }
+    }
+    /// Apply the same namespace and binding checks to a formula entered through the editor.
+    pub fn rewrite_input_expr(&self, e: Expr) -> Formula {
         self.rewrite_expr(e)
     }
     /// The parsed expression, re-parsing after deserialization.
@@ -217,5 +215,18 @@ mod prefix_tests {
         let rewritten = restored.rewrite_expr(shifted);
         assert_eq!(rewritten.text, "SYNTHETICFUTURE(A2)");
         assert_eq!(rewritten.file_functions, formula.file_functions);
+    }
+
+    /// A direct structural rewrite cannot carry a local occurrence's bare marker to a global call.
+    #[test]
+    fn direct_rewrite_discards_namespaces_when_let_bindings_change() {
+        let mut formula = Formula::new("XLOOKUP(1,A:A,B:B)+LET(XLOOKUP,1,XLOOKUP(2,A:A,B:B))");
+        formula.file_functions.insert("XLOOKUP".into(), vec![Some(FileFunctionPrefix::Xlfn), None]);
+        let e = formula.expr().unwrap().map(&mut |node| match node {
+            Expr::Name(name) if name == "XLOOKUP" => Expr::Name("Renamed".into()),
+            other => other,
+        });
+        assert!(formula.rewrite_expr(e.clone()).file_functions.is_empty());
+        assert!(formula.rewrite_input_expr(e).file_functions.is_empty());
     }
 }

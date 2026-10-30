@@ -105,10 +105,12 @@ fn imported_prefix_survives_table_and_header_rename() {
     s.execute("cell.set", json!({"cell":"A2","input":"1"})).unwrap();
     s.execute("insert.table", json!({"range":"A1:A2","header":true,"name":"SyntheticTable"})).unwrap();
     s.execute("cell.set", json!({"cell":"B1","input":"=SYNTHETICFUTURE(SyntheticTable[Amount])"})).unwrap();
+    assert!(saved_xml(&mut s).contains("_xlfn.SYNTHETICFUTURE(SyntheticTable[Amount])"));
     s.execute("table.rename", json!({"table":"SyntheticTable","name":"SyntheticRenamed"})).unwrap();
+    assert!(saved_xml(&mut s).contains("_xlfn.SYNTHETICFUTURE(SyntheticRenamed[Amount])"));
     s.execute("cell.set", json!({"cell":"A1","input":"Changed"})).unwrap();
     let xml = saved_xml(&mut s);
-    assert!(xml.contains("_xlfn.SYNTHETICFUTURE(SyntheticRenamed[Changed])"));
+    assert!(xml.contains("_xlfn.SYNTHETICFUTURE(SyntheticRenamed[Changed])"), "{xml}");
 }
 
 /// A replacement that binds the old function name locally must not inherit its global namespace.
@@ -187,4 +189,31 @@ fn mixed_known_prefixes_survive_edit_copy_and_reopen() {
     reopened.execute("file.open", json!({"name":"synthetic-reopened.xlsx","base64":saved["base64"]})).unwrap();
     let xml = saved_xml(&mut reopened);
     assert!(xml.contains(edited) && xml.contains(shifted), "{xml}");
+}
+
+/// Defined-name edits use rewrite_expr directly and must invalidate stale local-call prefixes.
+#[test]
+fn imported_prefixes_follow_binding_changes_through_name_manager() {
+    let mut wb = Workbook::new();
+    wb.names.push(gridcraft_model::DefinedName { name: "XLOOKUP".into(), scope: None, formula: "1".into(), comment: String::new(), hidden: false });
+    let mut formula = Formula::new("XLOOKUP(1,A:A,B:B)+LET(XLOOKUP,1,XLOOKUP(2,A:A,B:B))");
+    formula.file_functions.insert("XLOOKUP".into(), vec![Some(FileFunctionPrefix::Xlfn), None]);
+    wb.sheet_mut(0).unwrap().set_cell(CellRef::parse("C1").unwrap(), Cell::formula(formula));
+    let bytes = gridcraft_xlsx::write_xlsx(&wb).unwrap();
+    let mut s = Session::new();
+    s.execute("file.open", json!({"name":"synthetic-name-bindings.xlsx","base64":gridcraft_engine::io::base64_encode(&bytes)})).unwrap();
+    let before = saved_xml(&mut s);
+    assert!(before.contains("_xlpm.XLOOKUP(2,A:A,B:B)"), "{before}");
+    s.execute("formulas.defineName", json!({"oldName":"XLOOKUP","name":"Renamed","refersTo":"=1"})).unwrap();
+    let after = saved_xml(&mut s);
+    assert!(after.contains("_xlfn.XLOOKUP(2,A:A,B:B)"), "{after}");
+    assert!(after.contains("_xlpm.Renamed"), "{after}");
+    s.execute("edit.undo", json!({})).unwrap();
+    assert_eq!(saved_xml(&mut s), before);
+    s.execute("edit.redo", json!({})).unwrap();
+    assert_eq!(saved_xml(&mut s), after);
+    let saved = s.execute("file.saveBytes", json!({"format":"xlsx"})).unwrap();
+    let mut reopened = Session::new();
+    reopened.execute("file.open", json!({"name":"synthetic-renamed-bindings.xlsx","base64":saved["base64"]})).unwrap();
+    assert!(saved_xml(&mut reopened).contains("_xlfn.XLOOKUP(2,A:A,B:B)"));
 }
