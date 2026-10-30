@@ -126,7 +126,9 @@ widens a root. Dangling links are refused.
 Root flags cannot be combined with `--connect`: the desktop control channel does
 not enforce these roots, so the CLI refuses that configuration rather than
 advertising a restriction it cannot provide. This is a file policy for the
-headless MCP server, not an OS sandbox. Native roots retain open directory handles.
+headless MCP server, not an OS sandbox. Native roots capture open directory handles
+from the operator-selected paths before resolving their canonical names. A root
+name swapped during initialization cannot replace the captured directory authority.
 After resolving and checking a path, reads open it relative to the retained read
 root. Saves pin the authorized parent directory, then create a fresh temporary
 file exclusively and rename it through that same handle. Replacing a checked

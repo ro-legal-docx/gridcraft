@@ -59,15 +59,22 @@ struct Root {
 impl Root {
     /// The folder at `path`, which must exist.
     fn open(path: &Path, access: Access) -> Result<Self, String> {
+        Self::open_resolving(path, access, |p| std::fs::canonicalize(p))
+    }
+
+    fn open_resolving(path: &Path, access: Access, resolve: impl FnOnce(&Path) -> std::io::Result<PathBuf>) -> Result<Self, String> {
         let kind = match access {
             Access::Read => "read",
             Access::Write => "write",
         };
-        let resolved = std::fs::canonicalize(path)
-            .and_then(|p| if p.is_dir() { Ok(p) } else { Err(std::io::ErrorKind::NotADirectory.into()) })
-            .map_err(|e| format!("cannot open the automation {kind} root `{}`: {e}", path.display()))?;
+        // Capture the operator-selected directory before resolving its display/check name.
+        // A rename or symlink swap during resolution must not change the retained authority:
+        // later I/O always uses this handle, never reopens the resolved ambient pathname.
         #[cfg(not(target_arch = "wasm32"))]
-        let dir = cap_std::fs::Dir::open_ambient_dir(&resolved, cap_std::ambient_authority())
+        let dir = cap_std::fs::Dir::open_ambient_dir(path, cap_std::ambient_authority())
+            .map_err(|e| format!("cannot open the automation {kind} root `{}`: {e}", path.display()))?;
+        let resolved = resolve(path)
+            .and_then(|p| if p.is_dir() { Ok(p) } else { Err(std::io::ErrorKind::NotADirectory.into()) })
             .map_err(|e| format!("cannot open the automation {kind} root `{}`: {e}", path.display()))?;
         Ok(Self {
             shown: plain(resolved.clone()),
@@ -533,6 +540,59 @@ mod tests {
         for f in ["console", "com10", "COM0", "lpt", "a.csv", "nul-x"] {
             assert!(!is_device_name(f), "{f}");
         }
+    }
+
+    /// A root replaced during name resolution must never replace the captured authority.
+    #[cfg(unix)]
+    #[test]
+    fn root_handle_is_captured_before_resolving_its_name() {
+        for access in [Access::Read, Access::Write] {
+            for swap_before_resolution in [false, true] {
+                let (base, _) = folders("root-setup-swap");
+                let requested = base.join("in");
+                let retained = base.join("retained-root");
+                std::fs::write(requested.join("secret.csv"), "authorized sentinel").unwrap();
+                let root = Root::open_resolving(&requested, access, |path| {
+                    let swap = || {
+                        std::fs::rename(&requested, &retained).unwrap();
+                        std::os::unix::fs::symlink(base.join("outside"), &requested).unwrap();
+                    };
+                    if swap_before_resolution {
+                        swap();
+                    }
+                    let resolved = std::fs::canonicalize(path);
+                    if !swap_before_resolution {
+                        swap();
+                    }
+                    resolved
+                })
+                .unwrap();
+                assert_eq!(
+                    root.dir.read("secret.csv").unwrap(),
+                    b"authorized sentinel",
+                    "{access:?}, swap before resolution: {swap_before_resolution}"
+                );
+                root.dir.write("new.csv", "authorized output").unwrap();
+                assert_eq!(std::fs::read(retained.join("new.csv")).unwrap(), b"authorized output");
+                assert!(!base.join("outside/new.csv").exists());
+                assert_eq!(std::fs::read(base.join("outside/secret.csv")).unwrap(), b"x");
+            }
+        }
+    }
+
+    /// cap-std's Windows handle prevents replacing the root while its name is resolved.
+    #[cfg(windows)]
+    #[test]
+    fn root_handle_prevents_replacement_during_name_resolution() {
+        let (base, _) = folders("root-setup-lock");
+        let requested = base.join("in");
+        let root = Root::open_resolving(&requested, Access::Read, |path| {
+            assert!(std::fs::rename(&requested, base.join("retained-root")).is_err());
+            std::fs::canonicalize(path)
+        })
+        .unwrap();
+        assert_eq!(root.dir.read("a.csv").unwrap(), b"a,b");
+        assert!(requested.is_dir());
     }
 
     /// Replacing a checked path component must not redirect the later capability-relative open.
