@@ -25,7 +25,12 @@ ranges protect partial content edits even when follower caches are sparse or emp
 formatting and whole-array replacement remain supported. Clear Contents/Clear All also
 reject partial selections before changing the workbook; whole-array clears accept unions
 of areas but exclude filter-hidden rows from coverage. Missing cache entries are not
-reconstructed and no native Excel corpus qualification is claimed.
+reconstructed and no native Excel corpus qualification is claimed. A missing explicitly
+marked array anchor keeps stored followers when its calculation fails or produces no
+placeable replacement array; a successful replacement still supersedes old results. The
+freshness notice covers follower-only caches. Accepted multi-cell ranges keep their
+metadata even after single-cell metadata admission reaches its limit; the existing
+multi-cell count, area and scan-work budgets remain in force.
 
 `file.open` preserves nonempty formula caches, fills only absent results, and reports a
 stale-cache warning. `recalculate: true` requests a full recalculation. Normal argument
@@ -132,6 +137,7 @@ refresh. Counted under features (Get & Transform, ~10% ready), not here.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Keep stored array followers when a missing anchor cannot produce a replacement; retain accepted multi-cell range metadata after single-cell metadata saturation; include follower-only caches in the freshness notice. |
 | 2026-10-30 | minor | Reject partial Clear Contents/Clear All selections inside legacy arrays using declared ranges, including missing cached followers; allow whole-array selection unions and respect filter-hidden rows. |
 | 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |

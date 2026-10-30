@@ -396,3 +396,46 @@ fn cached_open_clear_legacy_arrays_respects_filtered_rows() {
         assert_eq!(value(&s, "A3"), Value::Empty);
     }
 }
+
+/// A missing unsupported array anchor must not erase saved followers through open/save/reopen.
+#[test]
+fn cached_open_keeps_followers_of_missing_failed_array_anchors() {
+    for dynamic in [false, true] {
+        for text in ["SYNTHETIC_UNSUPPORTED_ARRAY()", "1+"] {
+            let mut wb = Workbook::new();
+            let area = gridcraft_core::RangeRef::parse("A1:A3").unwrap();
+            let mut f = Formula::new(text);
+            f.dynamic = dynamic;
+            f.array = (!dynamic).then_some(area);
+            let sh = wb.sheet_mut(0).unwrap();
+            sh.set_cell(area.start, Cell::formula(f));
+            sh.spill_ranges.insert(area.start, area);
+            sh.spill.insert(CellRef::parse("A2").unwrap(), Value::Number(31.0));
+            sh.spill.insert(CellRef::parse("A3").unwrap(), Value::Number(42.0));
+            sh.set_cell(CellRef::parse("C1").unwrap(), Cell::formula(Formula::new("A2+1")));
+            let bytes = gridcraft_xlsx::write_xlsx(&wb).unwrap();
+            let mut s = Session::new();
+            let opened = s
+                .execute("file.open", json!({"name": "synthetic-missing-array-anchor.xlsx", "base64": gridcraft_engine::io::base64_encode(&bytes)}))
+                .unwrap();
+            assert_eq!(value(&s, "A1"), Value::Error(CellError::Name));
+            assert_eq!(value(&s, "A2"), Value::Number(31.0));
+            assert_eq!(value(&s, "A3"), Value::Number(42.0));
+            assert_eq!(value(&s, "C1"), Value::Number(32.0));
+            assert!(
+                opened["warnings"].as_array().unwrap().iter().any(|w| w.as_str().unwrap().contains("may be out of date")),
+                "saved follower caches also require the freshness notice"
+            );
+            let saved = s.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
+            let mut back = Session::new();
+            back.execute("file.open", json!({"name": "synthetic-missing-array-reopened.xlsx", "base64": saved["base64"]})).unwrap();
+            assert_eq!(value(&back, "A1"), Value::Error(CellError::Name));
+            assert_eq!(value(&back, "A2"), Value::Number(31.0));
+            assert_eq!(value(&back, "A3"), Value::Number(42.0));
+            assert_eq!(back.doc().unwrap().wb.sheet(0).unwrap().spill_ranges.get(&area.start), Some(&area));
+            if !dynamic {
+                assert!(back.execute("edit.clearContents", json!({"range": "A2"})).is_err());
+            }
+        }
+    }
+}

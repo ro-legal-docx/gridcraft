@@ -83,7 +83,7 @@ const MAX_HYPERLINK_CELLS: u64 = 10_000;
 /// copied for every cell of its range, so length × cells must stay bounded whatever the file.
 const MAX_HYPERLINK_BYTES: u64 = 8 * 1024 * 1024;
 const MAX_COLUMN_ASSIGNMENTS: u64 = 1_000_000;
-/// Most dynamic-array and legacy-array ranges of one sheet.
+/// Multi-cell membership ranges and single-cell metadata admissions have separate caps.
 const MAX_DYNAMIC_RANGES: usize = 65_536;
 /// Worst-case cells inside the dynamic ranges the sheet declares. Beyond it further ranges are
 /// dropped: they would cost their storage in every membership lookup that follows.
@@ -530,7 +530,9 @@ fn read_cell(cx: &mut Ctx<'_>, sheet: &mut Sheet, st: &mut RowState, c: &El, pos
         && let Some(f) = c.child("f").filter(|f| f.attr("t") == Some("array"))
     {
         let range = f.attr("ref").and_then(RangeRef::parse).unwrap_or(RangeRef::cell(pos));
-        if range.start == pos && sheet.spill_ranges.len() < MAX_DYNAMIC_RANGES && (range.is_single() || st.dynamic.last() == Some(&range)) {
+        if range.start == pos
+            && ((range.is_single() && sheet.spill_ranges.len() < MAX_DYNAMIC_RANGES) || (!range.is_single() && st.dynamic.last() == Some(&range)))
+        {
             sheet.spill_ranges.insert(pos, range);
         }
     }

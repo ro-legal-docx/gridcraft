@@ -539,3 +539,25 @@ fn array_cache_export_respects_columns_stored_cells_and_invalid_ranges() {
         assert!(!addresses.contains(&outside), "do not export an out-of-range spill: {outside}");
     }
 }
+
+/// Single-cell metadata saturation must not detach a later accepted multi-cell array's caches.
+#[test]
+fn accepted_array_keeps_metadata_after_single_cell_metadata_limit() {
+    use std::fmt::Write as _;
+    let mut xml = String::from("<sheetData>");
+    for row in 1..=65_536 {
+        write!(xml, "<row r=\"{row}\"><c r=\"A{row}\" cm=\"1\"><f t=\"array\" ref=\"A{row}\">1</f><v>1</v></c></row>").unwrap();
+    }
+    xml.push_str(r#"<row r="65537"><c r="A65537"><f t="array" ref="A65537:A65538">SYNTHETIC_UNSUPPORTED_ARRAY()</f><v>17</v></c></row><row r="65538"><c r="A65538"><v>42</v></c></row></sheetData>"#);
+    let bytes = super::minimal(&xml, &[], "", "");
+    let (wb, _) = read_xlsx(&bytes).unwrap();
+    let area = range("A65537:A65538");
+    let sh = wb.sheet(0).unwrap();
+    assert_eq!(sh.value(at("A65538")), Value::Number(42.0));
+    assert_eq!(sh.spill_ranges.get(&area.start), Some(&area));
+    let saved = write_xlsx(&wb).unwrap();
+    let (back, _) = read_xlsx(&saved).unwrap();
+    let sh = back.sheet(0).unwrap();
+    assert_eq!(sh.value(at("A65538")), Value::Number(42.0));
+    assert_eq!(sh.spill_ranges.get(&area.start), Some(&area));
+}

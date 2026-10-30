@@ -251,13 +251,16 @@ engine lifecycle regressions cover this scope. Sparse cached array followers sur
 beyond a million positions, and declared legacy-array ranges protect uncached followers
 from partial content edits, including Clear Contents and Clear All. Whole-array
 selection unions remain clearable; filter-hidden rows are excluded from the footprint.
-Structural edits still perform a full
-recalc; readiness estimates and migration qualification are unchanged.
+Missing array anchors retain stored followers when evaluation fails or produces no
+placeable replacement array. Accepted multi-cell metadata survives saturation by single-cell
+array metadata. The freshness notice includes follower-only caches. Structural edits still
+perform a full recalc; readiness estimates and migration qualification are unchanged.
 
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Keep stored array followers when a missing anchor cannot produce a replacement; retain accepted multi-cell range metadata after single-cell metadata saturation; include follower-only caches in the freshness notice. |
 | 2026-10-30 | minor | Reject partial Clear Contents/Clear All selections inside legacy arrays using declared ranges, including missing cached followers; allow whole-array selection unions and respect filter-hidden rows. |
 | 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |

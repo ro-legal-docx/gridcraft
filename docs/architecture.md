@@ -84,7 +84,15 @@ and replacement of the entire array remain allowed. Clear Contents and Clear All
 the selected footprint before editing, even when the cache has no ordinary follower cells.
 A union of selected areas may cover the whole array; filtered-out rows are not cleared and
 therefore cannot contribute to full coverage. Only stored values are retained;
-absent values are not invented or reconstructed.
+absent values are not invented or reconstructed. Missing anchors with explicit legacy/dynamic
+array metadata keep their saved followers when evaluation fails, yields no array or a new
+array is blocked. A successful replacement array still removes obsolete followers; normal
+full/incremental calculation retains its existing cleanup policy. The same retained range is
+available to missing dependents during the calculation pass. A follower-only cache also
+triggers the generic freshness notice. Accepted multi-cell ranges use their existing scan
+count/area/work budgets independently of single-cell metadata saturation; the metadata map
+can therefore contain at most twice the 65,536-range cap, with at most 65,536 multi-cell
+ranges participating in follower membership checks.
 This does not establish cache freshness or reconstruct absent cached spill data. Saved filename-dependent results, including `CELL("filename")`, can also retain a previous file name or an earlier cached error until explicit recalculation.
 
 ## UI building blocks
@@ -197,6 +205,7 @@ rpm, tarball), FreeBSD, and web (WASM; WebGPU or WebGL2). Release workflows in
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Keep stored array followers when a missing anchor cannot produce a replacement; retain accepted multi-cell range metadata after single-cell metadata saturation; include follower-only caches in the freshness notice. |
 | 2026-10-30 | minor | Reject partial Clear Contents/Clear All selections inside legacy arrays using declared ranges, including missing cached followers; allow whole-array selection unions and respect filter-hidden rows. |
 | 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
