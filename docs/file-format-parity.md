@@ -19,7 +19,10 @@ shared formulas are expanded during import (`array_export.rs`, #1505).
 XLSX legacy and dynamic arrays retain their stored follower values and declared ranges in
 spill storage. They are not ordinary cells that block later recalculation. Synthetic controls
 cover unsupported cached anchors, zero, empty text, false and errors across unrelated edits
-and save/reopen, plus row/column shifts of legacy array ranges. Missing cache entries are not
+and save/reopen, plus row/column shifts of legacy array ranges. Sparse followers beyond
+a million positions survive export without enumerating the declared area. Legacy-array
+ranges protect partial content edits even when follower caches are sparse or empty;
+formatting and whole-array replacement remain supported. Missing cache entries are not
 reconstructed and no native Excel corpus qualification is claimed.
 
 `file.open` preserves nonempty formula caches, fills only absent results, and reports a
@@ -127,6 +130,7 @@ refresh. Counted under features (Get & Transform, ~10% ready), not here.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
 | 2026-10-28 | trivial | Keep the stale formula-cache warning visible ahead of overflowing import warnings; a synthetic XLSX regression verifies the visible notice, retained warnings and overflow count |
 | 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |

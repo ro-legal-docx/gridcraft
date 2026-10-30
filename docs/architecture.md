@@ -1,6 +1,6 @@
 # Architecture
 
-> **Imported formula results update:** 2026-10-28 · Cache-preserving open, missing-result calculation and explicit recalculation build on #2308 by @mrzv. Saved results can be stale; structural edits still perform full recalculation. Readiness estimates unchanged.
+> **Imported formula results update:** 2026-10-30 · Cache-preserving open, missing-result calculation and explicit recalculation build on #2308 by @mrzv. Saved results can be stale; structural edits still perform full recalculation. Readiness estimates unchanged.
 >
 > **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-30 · **Change:** trivial (the hidden names that hold macros; earlier: macro engine on the engine building blocks) · **Target:** Microsoft Excel (Microsoft 365)
 
@@ -77,7 +77,11 @@ dynamic references still recalculate normally. Structural edits still use a full
 XLSX import now retains the file's stored legacy/dynamic array follower values in
 `Sheet::spill`, with bounded declared ranges in `spill_ranges`. They remain separate from
 ordinary cells, so a later full recalculation can spill without colliding with imported caches.
-Only stored values are retained; absent values are not invented or reconstructed.
+Export walks stored spill rows and matching cached entries rather than expanding the
+declared area, so sparse results beyond a million positions survive. Legacy-array edit
+protection checks declared ranges even when a follower has no cached value. Formatting
+and replacement of the entire array remain allowed. Only stored values are retained;
+absent values are not invented or reconstructed.
 This does not establish cache freshness or reconstruct absent cached spill data. Saved filename-dependent results, including `CELL("filename")`, can also retain a previous file name or an earlier cached error until explicit recalculation.
 
 ## UI building blocks
@@ -190,6 +194,7 @@ rpm, tarball), FreeBSD, and web (WASM; WebGPU or WebGL2). Release workflows in
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
 | 2026-10-30 | trivial | Clarify that XLSX fullCalcOnLoad does not override cached open; explicit recalculate: true is required for full recalculation on open. |
 | 2026-10-25 | trivial | The hidden names that hold macros are `_gc_macro_<n>_<k>` |

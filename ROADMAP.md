@@ -246,14 +246,17 @@ Ranked; estimates in Opus 5.5 agent-hours. Detail and the full beta-gate list in
 
 Cache-preserving open, missing-result calculation, an explicit full-recalc opt-in and a
 stale-cache warning build on #2308. A missing function no longer makes its call implicitly volatile on every edit;
-argument edits and supported dynamic references continue to recalculate. Eight synthetic
-engine lifecycle regressions cover this scope. Structural edits still perform a full
+argument edits and supported dynamic references continue to recalculate. Synthetic
+engine lifecycle regressions cover this scope. Sparse cached array followers survive export
+beyond a million positions, and declared legacy-array ranges protect uncached followers
+from partial content edits. Structural edits still perform a full
 recalc; readiness estimates and migration qualification are unchanged.
 
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
 | 2026-10-28 | trivial | Keep the stale formula-cache warning visible ahead of overflowing import warnings; a synthetic XLSX regression verifies the visible notice, retained warnings and overflow count |
 | 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |

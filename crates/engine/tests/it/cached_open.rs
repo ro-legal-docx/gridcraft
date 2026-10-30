@@ -276,3 +276,36 @@ fn cached_open_retains_array_followers_without_recalculating_the_anchor() {
         }
     }
 }
+
+/// Legacy-array metadata protects missing followers whether the cache is entirely empty or sparse.
+#[test]
+fn cached_open_protects_legacy_array_followers_without_stored_values() {
+    for cached_tail in [false, true] {
+        let mut wb = Workbook::new();
+        let area = gridcraft_core::RangeRef::parse("A1:A3").unwrap();
+        let mut f = Formula::new("SYNTHETIC_UNSUPPORTED_ARRAY()");
+        f.array = Some(area);
+        let mut anchor = Cell::formula(f);
+        anchor.value = Value::Number(17.0);
+        let sh = wb.sheet_mut(0).unwrap();
+        sh.set_cell(area.start, anchor);
+        sh.spill_ranges.insert(area.start, area);
+        if cached_tail {
+            sh.spill.insert(CellRef::parse("A3").unwrap(), Value::Number(31.0));
+        }
+        let bytes = gridcraft_xlsx::write_xlsx(&wb).unwrap();
+        let mut s = Session::new();
+        s.execute("file.open", json!({"name": "synthetic-sparse-legacy.xlsx", "base64": gridcraft_engine::io::base64_encode(&bytes)})).unwrap();
+        assert_eq!(s.doc().unwrap().wb.sheet(0).unwrap().spill.is_empty(), !cached_tail);
+        s.execute("home.bold", json!({"range": "A2"})).unwrap();
+        s.execute("cell.set", json!({"cell": "Z20", "input": "1"})).unwrap();
+        for (command, params) in [("cell.set", json!({"cell": "A2", "input": "9"})), ("range.setValues", json!({"range": "A2", "values": [[9]]}))] {
+            let before = s.doc().unwrap().wb.clone();
+            let error = s.execute(command, params).unwrap_err();
+            assert!(error.to_string().contains("part of an array"), "{error}");
+            assert!(std::sync::Arc::ptr_eq(&before, &s.doc().unwrap().wb), "a refused edit leaves the document intact");
+        }
+        s.execute("range.setValues", json!({"range": "A1", "values": [[1], [2], [3]]})).unwrap();
+        assert_eq!(value(&s, "A2"), Value::Number(2.0), "replacing the whole array remains allowed");
+    }
+}
