@@ -4621,9 +4621,9 @@ fn cell_filename_follows_the_file_the_workbook_lives_in() {
     assert_eq!(v(&fresh, "A1"), Value::from(dir.join(format!("[book one.xlsx]{sheet}")).to_string_lossy().into_owned().as_str()));
     assert_eq!(v(&fresh, "A2"), Value::from(sheet.as_str()));
 
-    // Opened from that path in another session: the same answer, from the file alone.
+    // Full recalculation on open refreshes file-dependent results; cached open may retain old results.
     let mut opened = s();
-    opened.execute("file.open", json!({"path": first})).unwrap();
+    opened.execute("file.open", json!({"path": first, "recalculate": true})).unwrap();
     opened.take_ui_requests();
     assert_eq!(v(&opened, "A2"), Value::from(sheet.as_str()));
 
@@ -4638,7 +4638,7 @@ fn cell_filename_follows_the_file_the_workbook_lives_in() {
     // Opened from bytes there is no folder, only a name — still splittable on the `]`.
     let saved = opened.execute("file.saveBytes", json!({"format": "xlsx"})).unwrap();
     let mut from_bytes = s();
-    from_bytes.execute("file.open", json!({"name": "from bytes.xlsx", "base64": saved["base64"]})).unwrap();
+    from_bytes.execute("file.open", json!({"name": "from bytes.xlsx", "base64": saved["base64"], "recalculate": true})).unwrap();
     from_bytes.take_ui_requests();
     assert_eq!(v(&from_bytes, "A1"), Value::from(format!("[from bytes.xlsx]{sheet}").as_str()));
     assert_eq!(v(&from_bytes, "A2"), Value::from(sheet.as_str()));

@@ -198,3 +198,34 @@ fn cached_open_shows_cache_notice_before_import_warning_overflow() {
     assert!(messages[0].contains("Saved formula results were kept and may be out of date"));
     assert!(messages[0].contains("2 additional import warnings."));
 }
+
+/// Filename-dependent caches are retained by default; an explicit full recalculation refreshes them.
+#[test]
+fn cached_open_filename_results_follow_explicit_recalculation_policy() {
+    let mut wb = Workbook::new();
+    let sheet_name = wb.sheet(0).unwrap().name.clone();
+    for (at, formula, cached) in [
+        ("A1", "CELL(\"filename\",C1)", Value::from("[saved-synthetic.xlsx]Previous")),
+        ("A2", "MID(CELL(\"filename\",C1),FIND(\"]\",CELL(\"filename\",C1))+1,31)", Value::Error(CellError::Value)),
+        ("B1", "GETPIVOTDATA(\"Suma\",C1)", Value::Number(1250.25)),
+    ] {
+        let mut cell = Cell::formula(Formula::new(formula));
+        cell.value = cached;
+        wb.sheet_mut(0).unwrap().set_cell(CellRef::parse(at).unwrap(), cell);
+    }
+    let bytes = gridcraft_xlsx::write_xlsx(&wb).unwrap();
+    let params = json!({"name": "opened-synthetic.xlsx", "base64": gridcraft_engine::io::base64_encode(&bytes)});
+    let mut cached = Session::new();
+    let opened = cached.execute("file.open", params.clone()).unwrap();
+    assert_eq!(value(&cached, "A1"), Value::from("[saved-synthetic.xlsx]Previous"));
+    assert_eq!(value(&cached, "A2"), Value::Error(CellError::Value));
+    assert_eq!(value(&cached, "B1"), Value::Number(1250.25));
+    assert!(opened["warnings"].as_array().unwrap().iter().any(|w| w.as_str().unwrap().contains("may be out of date")));
+    let mut params = params;
+    params["recalculate"] = json!(true);
+    let mut recalculated = Session::new();
+    recalculated.execute("file.open", params).unwrap();
+    assert_eq!(value(&recalculated, "A1"), Value::from(format!("[opened-synthetic.xlsx]{sheet_name}").as_str()));
+    assert_eq!(value(&recalculated, "A2"), Value::from(sheet_name.as_str()));
+    assert_eq!(value(&recalculated, "B1"), Value::Error(CellError::Name));
+}

@@ -1,8 +1,8 @@
 # Architecture
 
 > **Imported formula results update:** 2026-10-28 · Cache-preserving open, missing-result calculation and explicit recalculation build on #2308 by @mrzv. Saved results can be stale; structural edits still perform full recalculation. Readiness estimates unchanged.
-
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-25 · **Change:** trivial (the hidden names that hold macros; earlier: macro engine on the engine building blocks) · **Target:** Microsoft Excel (Microsoft 365)
+>
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-30 · **Change:** trivial (the hidden names that hold macros; earlier: macro engine on the engine building blocks) · **Target:** Microsoft Excel (Microsoft 365)
 
 How GridCraft is built today. Rules for contributors are in [`AGENTS.md`](../AGENTS.md).
 
@@ -66,12 +66,15 @@ including tests, 2026-10-10.
 `file.open` now uses `DocState::from_cached`: saved nonempty results are kept, missing
 formula results are calculated with `Calc::recalc_missing`, and the full dependency graph
 remains available for edits. The open response and import message warn that saved results
-may be stale. Callers can request `recalculate: true`; Calculate Now also performs the
+may be stale. For XLSX input, `file.open` deliberately retains saved nonempty results even
+when `calcPr` requests `fullCalcOnLoad`; that file flag does not override this open policy.
+Callers requiring a full recalculation on open must explicitly pass `recalculate: true`.
+Calculate Now also performs the
 existing full recalculation. Neither option makes unsupported functions calculable.
 Unresolved function calls retain their explicit argument dependencies but are not made
 volatile merely because the function is absent. Workbook-defined calls and supported
 dynamic references still recalculate normally. Structural edits still use a full recalc.
-This does not establish cache freshness or reconstruct absent cached spill data.
+This does not establish cache freshness or reconstruct absent cached spill data. Saved filename-dependent results, including `CELL("filename")`, can also retain a previous file name or an earlier cached error until explicit recalculation.
 
 ## UI building blocks
 
@@ -183,11 +186,12 @@ rpm, tarball), FreeBSD, and web (WASM; WebGPU or WebGL2). Release workflows in
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | trivial | Clarify that XLSX fullCalcOnLoad does not override cached open; explicit recalculate: true is required for full recalculation on open. |
 | 2026-10-25 | trivial | The hidden names that hold macros are `_gc_macro_<n>_<k>` |
 | 2026-10-24 | minor | Macro engine on the building blocks (`macros/`, `cmd/macros.rs`) |
 | 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |
 | 2026-10-25 | minor | Retain freshly detected dynamic cycles when cache-preserving calculation restores the full dependency graph |
 | 2026-10-24 | minor | Engine building blocks for multi-command actions: undo groups, recording buffer, document trust, chunked hidden-name storage |
-| 2026-10-22 | minor | Add the opt-in `Calc::recalc_missing` API for cache-preserving read-only calculation; retain normal incremental editing afterwards |
+| 2026-10-22 | minor | Add the opt-in `Calc::recalc_missing` API for cache-preserving read-only calculation; retain normal incremental editing afterward |
 | 2026-10-14 | minor | Document Undo's retained-cell-storage budget and latest-step guarantee |
 | 2026-10-10 | major | Created from the code on main: crates, layers, data flow, agent control, known gaps |
