@@ -18,20 +18,22 @@ fn copied(wb: &Workbook, range: &str) -> String {
     range_html(wb, 0, r, &crate::display::range_text(wb, 0, r)).unwrap()
 }
 
-/// Retain all native fixtures; every run has a fresh random directory.
+/// Isolate each native save fixture and clean it on normal return or unwinding. Set
+/// `GRIDCRAFT_RETAIN_TEST_FIXTURES` to retain diagnostics on workstations that forbid cleanup.
 #[cfg(not(target_arch = "wasm32"))]
-fn retained_save_fixture(label: &str) -> std::path::PathBuf {
-    let mut random = [0u8; 16];
-    getrandom::fill(&mut random).unwrap();
-    let dir = std::env::temp_dir().join(format!("gridcraft-save-{label}-{:032x}", u128::from_le_bytes(random)));
-    std::fs::create_dir_all(&dir).unwrap();
-    dir
+fn save_fixture(label: &str) -> tempfile::TempDir {
+    tempfile::Builder::new()
+        .prefix(&format!("gridcraft-save-{label}-"))
+        .disable_cleanup(std::env::var_os("GRIDCRAFT_RETAIN_TEST_FIXTURES").is_some())
+        .tempdir()
+        .unwrap()
 }
 
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn stale_temporary_file_does_not_block_save_or_get_removed() {
-    let dir = retained_save_fixture("stale");
+    let fixture = save_fixture("stale");
+    let dir = fixture.path();
     let stale = dir.join("book.xlsx.sctmp");
     std::fs::write(&stale, b"stale contents").unwrap();
     let dest = dir.join("book.xlsx");
@@ -44,7 +46,8 @@ fn stale_temporary_file_does_not_block_save_or_get_removed() {
 #[cfg(all(not(target_arch = "wasm32"), unix))]
 #[test]
 fn planted_temporary_symlink_does_not_block_save_or_modify_its_target() {
-    let dir = retained_save_fixture("planted");
+    let fixture = save_fixture("planted");
+    let dir = fixture.path();
     let victim = dir.join("victim.txt");
     std::fs::write(&victim, b"original").unwrap();
     let dest = dir.join("book.xlsx");
@@ -59,7 +62,8 @@ fn planted_temporary_symlink_does_not_block_save_or_modify_its_target() {
 #[cfg(all(not(target_arch = "wasm32"), unix))]
 #[test]
 fn atomic_save_uses_the_pinned_parent_after_a_directory_swap() {
-    let dir = retained_save_fixture("parent-swap");
+    let fixture = save_fixture("parent-swap");
+    let dir = fixture.path();
     for sub in ["allowed/sub", "outside"] {
         std::fs::create_dir_all(dir.join(sub)).unwrap();
     }
@@ -78,7 +82,8 @@ fn atomic_save_uses_the_pinned_parent_after_a_directory_swap() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn simultaneous_atomic_saves_do_not_share_temporary_names() {
-    let dir = retained_save_fixture("parallel");
+    let fixture = save_fixture("parallel");
+    let dir = fixture.path();
     let destination = dir.join("book.xlsx");
     let barrier = std::sync::Barrier::new(8);
     std::thread::scope(|scope| {
