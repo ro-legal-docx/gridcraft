@@ -61,7 +61,7 @@ fn locale_independent_built_ins_keep_their_id() {
 }
 
 /// Original synthetic package: a date in a conditional differential number format.
-fn dxf_date_round_trip(id: Option<u32>, code: &str, builtin: bool) {
+fn dxf_date_round_trip(id: Option<u32>, code: &str, expected_code: &str, builtin: bool) {
     let attr = id.map(|id| format!(" numFmtId=\"{id}\"")).unwrap_or_default();
     let styles = format!(
         r#"<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -79,7 +79,7 @@ fn dxf_date_round_trip(id: Option<u32>, code: &str, builtin: bool) {
         let sh = wb.sheet(0).unwrap();
         assert_eq!(sh.value(CellRef::new(0, 0)), Value::Number(45292.5));
         let CfRule::CellIs { style, .. } = &sh.cond_formats[0].rule else { panic!("expected cellIs") };
-        assert_eq!(style.num_fmt.as_str(), code);
+        assert_eq!(style.num_fmt.as_str(), expected_code);
         assert_eq!(style.num_fmt.is_literal_short_date(), !builtin, "id={id:?}, code={code}");
         let out = write_xlsx(&wb).unwrap();
         let xml = styles_xml(&out);
@@ -91,7 +91,7 @@ fn dxf_date_round_trip(id: Option<u32>, code: &str, builtin: bool) {
         } else {
             assert!(written_id >= 164, "custom date collapsed to built-in {written_id}");
         }
-        assert_eq!(written.attr("formatCode"), Some(code));
+        assert_eq!(written.attr("formatCode"), Some(expected_code));
         wb = read_xlsx(&out).unwrap().0;
     }
 }
@@ -99,7 +99,7 @@ fn dxf_date_round_trip(id: Option<u32>, code: &str, builtin: bool) {
 #[test]
 fn dxf_builtin_short_dates_keep_regional_identity_and_builtin_ids() {
     for (id, code) in [(14, "m/d/yyyy"), (22, "m/d/yyyy h:mm")] {
-        dxf_date_round_trip(Some(id), code, true);
+        dxf_date_round_trip(Some(id), code, code, true);
     }
 }
 
@@ -107,7 +107,29 @@ fn dxf_builtin_short_dates_keep_regional_identity_and_builtin_ids() {
 fn dxf_custom_and_missing_ids_keep_literal_short_dates() {
     for id in [Some(164), Some(165), None] {
         for code in ["m/d/yyyy", "m/d/yyyy h:mm"] {
-            dxf_date_round_trip(id, code, false);
+            dxf_date_round_trip(id, code, code, false);
         }
+    }
+}
+
+#[test]
+fn dxf_standard_short_date_aliases_use_canonical_builtin_formats() {
+    for (id, code, canonical) in [
+        (14, "mm-dd-yy", "m/d/yyyy"),
+        (14, "MM-DD-YY", "m/d/yyyy"),
+        (14, "M/D/YYYY", "m/d/yyyy"),
+        (22, "m/d/yy h:mm", "m/d/yyyy h:mm"),
+        (22, "M/D/YY H:MM", "m/d/yyyy h:mm"),
+    ] {
+        dxf_date_round_trip(Some(id), code, canonical, true);
+    }
+}
+
+#[test]
+fn explicit_custom_standard_aliases_keep_their_code_and_custom_id() {
+    for code in ["mm-dd-yy", "MM-DD-YY", "m/d/yy h:mm", "M/D/YY H:MM"] {
+        let (id, _, back) = round_trip(code);
+        assert!(id >= 164, "explicit custom alias collapsed to built-in {id}");
+        assert_eq!(back, code);
     }
 }

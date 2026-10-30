@@ -388,6 +388,8 @@ fn read_dxf(x: &El, palette: &[u32], fmts: &HashMap<u32, String>) -> Style {
     if let Some(n) = x.child("numFmt") {
         if let Some(code) = n.attr("formatCode") {
             s.num_fmt = match n.attr_u32("numFmtId") {
+                Some(14) if code.eq_ignore_ascii_case("mm-dd-yy") || code.eq_ignore_ascii_case("m/d/yyyy") => NumFmt::new("m/d/yyyy"),
+                Some(22) if code.eq_ignore_ascii_case("m/d/yy h:mm") || code.eq_ignore_ascii_case("m/d/yyyy h:mm") => NumFmt::new("m/d/yyyy h:mm"),
                 Some(id) if id < 164 => NumFmt::new(code),
                 _ => NumFmt::custom(code),
             };

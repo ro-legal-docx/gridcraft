@@ -3,6 +3,7 @@
 //! values, codes and everything outside the grid stay en-US.
 
 use egui::Shape;
+use egui_kittest::kittest::Queryable as _;
 use gridcraft_engine::Session;
 use gridcraft_engine::numfmt::Locale;
 use gridcraft_ui_egui::SheetApp;
@@ -88,4 +89,70 @@ fn system_custom_short_date_and_literal_custom_code_paint_differently() {
     h.run_steps(4);
     assert!(painted(&h, "01.01.2024"));
     assert!(painted(&h, "1/1/2024"));
+}
+
+fn custom_date_dialog() -> Harness {
+    let mut h = harness(Some("ro-RO"));
+    h.state_mut().session.execute("selection.set", json!({"cell":"A2"})).unwrap();
+    let wb = std::sync::Arc::make_mut(&mut h.state_mut().session.active_mut().unwrap().wb);
+    let id = wb.styles.derive(Default::default(), |st| st.num_fmt = gridcraft_engine::model::NumFmt::custom("m/d/yyyy"));
+    wb.sheet_mut(0).unwrap().set_style(gridcraft_engine::core::CellRef::new(1, 0), id);
+    h.run_steps(2);
+    h.state_mut().open_dialog("formatCells", json!({}));
+    h.run_steps(3);
+    h
+}
+
+fn confirm_custom_date(h: &mut Harness, literal: bool, bold: bool) {
+    h.get_by_label_contains("OK").click();
+    h.run_steps(3);
+    assert!(h.state().dialog.is_none());
+    let wb = &h.state().session.active().unwrap().wb;
+    let at = gridcraft_engine::core::CellRef::new(1, 0);
+    let st = wb.styles.get(wb.sheet(0).unwrap().style_id(at));
+    assert_eq!(st.num_fmt.is_literal_short_date(), literal);
+    assert_eq!(st.font.bold, bold);
+    let bytes = gridcraft_xlsx::write_xlsx(wb).unwrap();
+    let (back, _) = gridcraft_xlsx::read_xlsx(&bytes).unwrap();
+    let sh = back.sheet(0).unwrap();
+    assert_eq!(sh.value(at), gridcraft_engine::core::Value::Number(45292.0));
+    assert_eq!(back.styles.get(sh.style_id(at)).num_fmt, st.num_fmt);
+}
+
+#[test]
+fn opening_and_confirming_format_cells_keeps_custom_date_identity() {
+    let mut h = custom_date_dialog();
+    confirm_custom_date(&mut h, true, false);
+    assert!(painted(&h, "1/1/2024"));
+}
+
+#[test]
+fn changing_font_in_format_cells_keeps_custom_date_identity() {
+    let mut h = custom_date_dialog();
+    h.get_by_label("Font").click();
+    h.run_steps(3);
+    h.get_by_role_and_label(egui::accesskit::Role::CheckBox, "Bold").click();
+    h.run_steps(2);
+    confirm_custom_date(&mut h, true, true);
+}
+
+#[test]
+fn intentional_number_format_edits_can_replace_custom_date_identity() {
+    for edit in ["preset", "button", "type"] {
+        let mut h = custom_date_dialog();
+        match edit {
+            "preset" => h.get_by_label("Short Date").click(),
+            "button" => h.get_by_label("m/d/yyyy").click(),
+            _ => {
+                h.get_by_label("Type (custom format code):").click();
+                h.run_steps(2);
+                h.key_press_modifiers(egui::Modifiers::COMMAND, egui::Key::A);
+                h.run_steps(1);
+                h.input_mut().events.push(egui::Event::Text("dd.mm.yyyy".into()));
+            }
+        }
+        h.run_steps(3);
+        confirm_custom_date(&mut h, false, false);
+        assert!(painted(&h, "01.01.2024"));
+    }
 }

@@ -19,7 +19,11 @@ adds Romanian conventions and addresses the numeric short-date case reported in
   custom format with code `m/d/yyyy` or `m/d/yyyy h:mm` remains literal and is saved with a
   custom format ID. Differential formats (`dxf`, used by conditional formatting) respect their
   declared built-in/custom ID as well; a missing ID with an explicit code is treated as custom.
-  Case and escaped-separator aliases are retained too. Numeric separators
+  Built-in DXF standard spellings `mm-dd-yy` (14) and `m/d/yy h:mm` (22) normalize to the
+  internal canonical codes; explicit custom spellings keep their own code and custom ID.
+  Opening Format Cells or changing a font retains the custom identity; actual number-format
+  edits (preset, code field or shortcut) can replace it. Case and escaped-separator aliases
+  are retained too. Numeric separators
   still follow the display locale, while quoted literals and stored currency symbols stay intact.
 - Grid painting, Page Layout painting and column AutoFit use the same session locale.
   `snapshot --locale ro-RO` overrides the system locale before executing commands.

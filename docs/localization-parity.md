@@ -1,6 +1,6 @@
 # Localization parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-30 · **Change:** minor (conditional differential formats preserve built-in versus custom short-date identity) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-30 · **Change:** minor (Format Cells retains custom short-date identity; standard built-in DXF aliases normalize by ID) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
 
 Per-language status against Excel, which ships its UI in dozens of languages (Windows language
 packs cover 100+), with localized function names, argument separators, number and date formats,
@@ -118,6 +118,7 @@ language (none so far) and of localized function names.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-30 | minor | #2933 follow-up: Format Cells only replaces a number format after a number-format edit; standard built-in DXF aliases normalize by ID while custom codes remain literal |
 | 2026-10-30 | minor | #2933 review: differential number formats preserve built-in IDs 14/22 and regional display; custom or missing IDs retain literal short-date aliases through repeated XLSX save/reopen |
 | 2026-10-29 | minor | Adapt #2263 by @pick2510 to the modular grid and AutoFit; add Romanian separators, region overrides, macOS numeric short-date customizations (#2869), and retention of custom XLSX short-date aliases through save/reopen |
 | 2026-10-24 | minor | The grid shows numbers and dates in the system's region: decimal and digit-group separators (de-CH `1'169.50`, de-DE `1.169,50`, fr-FR narrow no-break space) and the region's short date for the built-in short date format (de-CH `01.01.2024`). The region comes from macOS's Region setting, Linux's `LC_NUMERIC` (or `LC_ALL`, `LANG`) or Windows's user locale, not the interface language, so English (US) with the Region set to Switzerland gets Swiss formats. Input, the editor, files, commands, CSV and `TEXT()` stay en-US |
