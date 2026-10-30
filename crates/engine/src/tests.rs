@@ -3393,7 +3393,9 @@ fn xls_import_keeps_formulas_and_never_saves_back_to_xls() {
     assert_eq!(gridcraft_xlsx::sniff(&bytes), gridcraft_xlsx::Format::Xls);
     let mut s = s();
     let r = s.execute("file.open", json!({"name": "legacy.xls", "base64": crate::io::base64_encode(&bytes)})).unwrap();
-    assert!(r["warnings"][0].as_str().unwrap().contains("97-2003"));
+    let warnings = r["warnings"].as_array().unwrap();
+    assert!(warnings[0].as_str().unwrap().contains("may be out of date"), "cache notice stays visible first");
+    assert!(warnings.iter().any(|w| w.as_str().is_some_and(|w| w.contains("97-2003"))), "retain the legacy-format warning");
     assert_eq!(r["sheets"], json!(["Old"]));
     let d = s.doc().unwrap();
     assert!(d.path.is_none());
