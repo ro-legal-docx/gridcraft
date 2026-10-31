@@ -80,6 +80,20 @@ fn romanian_region_shows_grouped_numbers_and_dates() {
     assert!(painted(&h, "0,25"));
 }
 
+/// Switching interface languages retains the independent Romanian format region and cell text.
+#[test]
+fn interface_language_changes_keep_romanian_number_and_date_display() {
+    let mut h = harness(Some("ro-RO"));
+    for language in [gridcraft_ui_egui::i18n::Language::En, gridcraft_ui_egui::i18n::Language::De, gridcraft_ui_egui::i18n::Language::Ro] {
+        h.state_mut().ui.language = language;
+        h.run_steps(4);
+        assert!(painted(&h, "1.169,50"));
+        assert!(painted(&h, "01.01.2024"));
+        assert!(painted(&h, "0,25"));
+        assert_eq!(h.state().session.display_locale, Locale::from_tag("ro-RO"));
+    }
+}
+
 /// A system short-date override affects the built-in family while an imported custom code
 /// keeps its literal ordering in the same grid.
 #[test]

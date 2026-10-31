@@ -10,9 +10,16 @@ adds Romanian conventions and addresses the numeric short-date case reported in
 
 The function contracts touched by this PR now document locale selection, literal custom-format
 identity, numeric ICU conversion, on-screen painting, AutoFit and the existing synthetic
-regressions. This is documentation only: executable Rust and test assertions are unchanged.
+regressions. Commit `1d4cdafb` is documentation only: executable Rust and test assertions are unchanged.
 The original five commits from @pick2510 remain ancestors. The compatibility limits below
 and the localization readiness estimate are unchanged.
+
+The Windows follow-up reads the user's format locale through `current_locale`'s safe
+`GetUserDefaultLocaleName` wrapper instead of `sys_locale`, which reports preferred UI languages
+on Windows. The interface-language path remains unchanged. An in-memory UI regression switches
+English/German/Romanian interface languages while retaining Romanian number/date display.
+The native Windows API path still needs validation on Windows; the regression injects the
+format region and does not change operating-system settings.
 
 ## Behavior
 
@@ -20,6 +27,9 @@ and the localization readiness estimate are unchanged.
   as `1.234.567,89`, and built-in short dates as `04.03.2026`.
 - The numeric region is independent of the interface language. POSIX `@rg=rozzzz` and
   Unicode `u-rg-rozzzz` overrides take precedence; private-use subtags do not.
+- On Windows, the user format-locale name supplies the region (for example Romanian formats
+  with an English interface); failure retains the existing en-US display fallback. POSIX
+  environment variables do not override this Windows format-locale lookup.
 - On macOS, Foundation's current-locale short-date formatter supplies supported numeric
   user customizations. ICU `dd.MM.y` becomes Excel `dd.mm.yyyy`; ICU `yy` remains a two-digit year.
   No system preferences are changed. The locale is captured at application startup.
@@ -84,3 +94,6 @@ without modifying the workstation settings. No Excel-produced fixtures or vendor
   describe Excel's built-in 14/22 codes.
 - [Apple DateFormatter documentation](https://developer.apple.com/documentation/foundation/dateformatter)
   documents current-locale date styles and numeric date patterns.
+
+- [Microsoft GetUserDefaultLocaleName](https://learn.microsoft.com/en-us/windows/win32/api/winnls/nf-winnls-getuserdefaultlocalename)
+  specifies the user default locale-name API used by the Windows-only safe wrapper.

@@ -37,7 +37,13 @@ fn system_region_tag() -> Option<String> {
     {
         region_tag_from_env(|k| std::env::var(k).ok())
     }
-    #[cfg(not(unix))]
+    #[cfg(target_os = "windows")]
+    {
+        // sys-locale reads GetUserPreferredUILanguages on Windows. Numbers and dates
+        // instead follow the user's format locale, even with an English interface.
+        current_locale::current_locale().ok()
+    }
+    #[cfg(all(not(unix), not(target_os = "windows")))]
     {
         sys_locale::get_locale()
     }
