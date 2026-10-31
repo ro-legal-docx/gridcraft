@@ -380,6 +380,7 @@ struct PanesInput<'a> {
     tokens: &'a Tokens,
 }
 
+/// Paint scrolling and frozen panes with the session display locale and pane-local clipping.
 fn paint_panes(input: PanesInput<'_>, cf: &mut CfCache) -> Vec<PaneQuad> {
     let PanesInput { app, painter, geo, workbook: wb, sheet_index: si, sheet: sh, selection: sel, outline, tokens: t } = input;
     // Quadrants: (rows, cols, clip).

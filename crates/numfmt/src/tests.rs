@@ -902,6 +902,8 @@ fn closed_brackets_still_hold_their_semicolons() {
     assert_eq!(f("\"[\"0;0", 5.0), "[5");
 }
 
+/// Regional separators and built-in dates preserve literal tokens and custom date order;
+/// the invariant formatter and unknown-region fallback retain en-US conventions.
 #[test]
 fn regional_display_formats() {
     let f = |v: f64, code: &str, tag: &str| {

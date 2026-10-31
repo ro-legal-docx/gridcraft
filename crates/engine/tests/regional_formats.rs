@@ -11,10 +11,13 @@ use gridcraft_engine::{
 };
 use serde_json::json;
 
+/// Address a zero-based row in the synthetic fixture's value column B.
 fn at(row: u32) -> CellRef {
     CellRef::new(row, 1)
 }
 
+/// Build an original in-memory XLSX with built-in dates, custom aliases and numeric formats
+/// using the requested date system; no Office-authored workbook is needed.
 fn fixture(sys: DateSystem) -> Vec<u8> {
     let serial = gridcraft_engine::core::parse::parse_input("2026-03-04", sys).value.as_f64().unwrap();
     let styles = r##"<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
@@ -76,9 +79,11 @@ fn fixture(sys: DateSystem) -> Vec<u8> {
     zip.finish().unwrap().into_inner()
 }
 
+/// Read the fixture cell through the locale-aware display path used by the grid.
 fn shown(wb: &Workbook, row: u32, loc: &Locale) -> String {
     cell_text_in(wb, wb.sheet(0).unwrap(), at(row), loc)
 }
+/// Extract a named XML part from the synthetic XLSX for independent serialization checks.
 fn part(bytes: &[u8], name: &str) -> String {
     let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
     let mut text = String::new();
@@ -86,6 +91,8 @@ fn part(bytes: &[u8], name: &str) -> String {
     text
 }
 
+/// Built-in regional dates and literal custom codes survive three XLSX round trips
+/// with both date systems, unchanged values and invariant formula/editor text.
 #[test]
 fn synthetic_xlsx_preserves_regional_builtins_and_literal_custom_dates() {
     for sys in [DateSystem::D1900, DateSystem::D1904] {
@@ -134,6 +141,8 @@ fn synthetic_xlsx_preserves_regional_builtins_and_literal_custom_dates() {
     }
 }
 
+/// Marked custom short-date aliases retain their identity through style JSON and XLSX
+/// while legacy string representations remain accepted.
 #[test]
 fn custom_short_date_aliases_survive_style_serialization_and_xlsx() {
     for code in ["m/d/yyyy", "M/D/YYYY", "m\\/d\\/yyyy", "m/d/yyyy h:mm"] {
@@ -154,6 +163,7 @@ fn custom_short_date_aliases_survive_style_serialization_and_xlsx() {
     assert_eq!(serde_json::from_str::<NumFmt>("\"0.00\"").unwrap(), NumFmt::new("0.00"));
 }
 
+/// Romanian AutoFit measures localized text while command inputs and stored values stay invariant.
 #[test]
 fn romanian_autofit_and_commands_keep_numeric_values_and_invariant_input() {
     let mut s = Session::new();
@@ -182,6 +192,8 @@ fn romanian_autofit_and_commands_keep_numeric_values_and_invariant_input() {
     assert_eq!(s.active().unwrap().wb.sheet(0).unwrap().value(CellRef::new(0, 0)), before);
 }
 
+/// A font edit retains an imported literal date; an intentional date preset and Undo
+/// switch and restore its identity through XLSX export.
 #[test]
 fn formatting_and_undo_preserve_an_imported_custom_date() {
     let (wb, _) = gridcraft_xlsx::read_xlsx(&fixture(DateSystem::D1900)).unwrap();

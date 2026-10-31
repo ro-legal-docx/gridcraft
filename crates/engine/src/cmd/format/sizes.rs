@@ -135,6 +135,8 @@ pub fn approx_text_width(text: &str, size: f32, bold: bool) -> f32 {
 /// quick measure so a huge column doesn't lay out every value.
 const EXACT_TEXT_WIDTHS: usize = 2_000;
 
+/// Fit requested column widths to cell text in the session display locale.
+/// Reuse measured widths and respect the exact-measurement budget for large selections.
 pub(super) fn autofit_cols(s: &mut Session, p: &Json) -> Result<Json> {
     let (si, lines) = line_targets(s, p, false)?;
     let measure = s.text_width.clone();

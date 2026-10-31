@@ -190,6 +190,8 @@ fn fill_int(toks: &[Tok], idxs: &[usize], digits: &str, group: Option<char>, for
     }
 }
 
+/// Group integer digits in threes with the requested separator, or leave them unchanged
+/// when the format does not request grouping.
 fn with_commas(digits: &str, group: Option<char>) -> String {
     let Some(group) = group else {
         return digits.to_string();

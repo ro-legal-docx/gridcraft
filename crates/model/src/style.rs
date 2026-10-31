@@ -419,6 +419,7 @@ enum NumFmtRepr {
 }
 
 impl From<NumFmtRepr> for NumFmt {
+    /// Restore format identity from either legacy string JSON or the marked custom representation.
     fn from(value: NumFmtRepr) -> Self {
         match value {
             NumFmtRepr::Code(code) => Self(code, false),
@@ -433,16 +434,19 @@ impl From<NumFmtRepr> for NumFmt {
     }
 }
 impl From<NumFmt> for NumFmtRepr {
+    /// Choose marked JSON only for literal short-date aliases; serialize other formats as strings.
     fn from(value: NumFmt) -> Self {
         if value.1 { Self::Literal { code: value.0, literal_short_date: true } } else { Self::Code(value.0) }
     }
 }
 impl Default for NumFmt {
+    /// Use General with ordinary format identity as the default number format.
     fn default() -> Self {
         Self::new("General")
     }
 }
 impl NumFmt {
+    /// Create ordinary format identity; imported custom aliases use `Self::custom`.
     pub fn new(s: &str) -> Self {
         Self(Arc::from(s), false)
     }
@@ -451,6 +455,7 @@ impl NumFmt {
         let normalized: String = s.chars().filter(|c| *c != '\\').flat_map(char::to_lowercase).collect();
         Self(Arc::from(s), matches!(normalized.as_str(), "m/d/yyyy" | "m/d/yyyy h:mm"))
     }
+    /// Whether this custom short-date alias must retain its literal date order when displayed.
     pub fn is_literal_short_date(&self) -> bool {
         self.1
     }

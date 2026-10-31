@@ -817,6 +817,7 @@ use sizes::{autofit_cols, autofit_rows, col_width, default_width, hide, row_heig
 
 #[cfg(test)]
 mod tests {
+    /// AutoFit sends the region-rendered cell text to the text-width callback.
     #[test]
     fn autofit_measures_the_text_in_the_display_region() {
         let width = |tag: &str| {

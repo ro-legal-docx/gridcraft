@@ -151,10 +151,13 @@ pub fn value_text_as(wb: &Workbook, v: &Value, code: &str) -> String {
     value_text_in(wb, v, code, &Locale::EN_US)
 }
 
+/// Render a value and format code in the requested display locale without column clipping.
 fn value_text_in(wb: &Workbook, v: &Value, code: &str, loc: &Locale) -> String {
     formatted_text(format_in(v, code, wb, loc))
 }
 
+/// Flatten formatted output to plain text, replacing an alignment fill with one space
+/// only when its insertion position is a valid text boundary.
 fn formatted_text(f: Formatted) -> String {
     match f.fill {
         Some((_, pos)) => {

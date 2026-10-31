@@ -130,6 +130,7 @@ fn center_across_run_stops_at_first_non_continuing_column() {
     assert_eq!(center_across_end(0, 1, |_| true), 1);
 }
 
+/// The effective conditional number format reaches the text drawn for the cell.
 #[test]
 fn conditional_number_format_reaches_the_cell_text() {
     // #1163: a rule's number format replaces the cell's own; unmatched cells keep theirs.

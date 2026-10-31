@@ -11,6 +11,7 @@ use serde_json::json;
 
 type Harness = egui_kittest::Harness<'static, SheetApp>;
 
+/// Build an offscreen UI with fixed synthetic values and an optional display locale.
 fn harness(tag: Option<&str>) -> Harness {
     let mut s = Session::new();
     s.new_workbook();
@@ -35,10 +36,12 @@ fn harness(tag: Option<&str>) -> Harness {
     h
 }
 
+/// Whether the rendered egui output contains the expected cell text.
 fn painted(h: &Harness, text: &str) -> bool {
     h.output().shapes.iter().any(|s| matches!(&s.shape, Shape::Text(t) if t.galley.job.text == text))
 }
 
+/// Swiss display uses apostrophe grouping and dotted dates without changing the stored code.
 #[test]
 fn swiss_region_shows_apostrophe_groups_and_dotted_dates() {
     let h = harness(Some("en_CH"));
@@ -51,6 +54,7 @@ fn swiss_region_shows_apostrophe_groups_and_dotted_dates() {
     assert_eq!(d.wb.styles.get(sh.style_id(gridcraft_engine::core::CellRef::new(1, 0))).num_fmt.as_str(), "m/d/yyyy");
 }
 
+/// German grid rendering uses decimal commas and dotted short dates.
 #[test]
 fn german_region_shows_decimal_commas() {
     let h = harness(Some("de-DE"));
@@ -59,6 +63,7 @@ fn german_region_shows_decimal_commas() {
     assert!(painted(&h, "0,25"));
 }
 
+/// An unconfigured session paints numbers and short dates with the en-US fallback.
 #[test]
 fn default_region_is_en_us() {
     let h = harness(None);
@@ -66,6 +71,7 @@ fn default_region_is_en_us() {
     assert!(painted(&h, "1/1/2024"));
 }
 
+/// Romanian grid rendering uses dotted groups, decimal commas and dotted short dates.
 #[test]
 fn romanian_region_shows_grouped_numbers_and_dates() {
     let h = harness(Some("ro-RO"));
@@ -74,6 +80,8 @@ fn romanian_region_shows_grouped_numbers_and_dates() {
     assert!(painted(&h, "0,25"));
 }
 
+/// A system short-date override affects the built-in family while an imported custom code
+/// keeps its literal ordering in the same grid.
 #[test]
 fn system_custom_short_date_and_literal_custom_code_paint_differently() {
     let mut h = harness(Some("en_US@rg=sgzzzz"));
@@ -91,6 +99,7 @@ fn system_custom_short_date_and_literal_custom_code_paint_differently() {
     assert!(painted(&h, "1/1/2024"));
 }
 
+/// Open Format Cells on a synthetic imported custom short date in a Romanian session.
 fn custom_date_dialog() -> Harness {
     let mut h = harness(Some("ro-RO"));
     h.state_mut().session.execute("selection.set", json!({"cell":"A2"})).unwrap();
@@ -103,6 +112,8 @@ fn custom_date_dialog() -> Harness {
     h
 }
 
+/// Confirm the dialog and verify format identity, font state and the stored date
+/// before and after an in-memory XLSX round trip.
 fn confirm_custom_date(h: &mut Harness, literal: bool, bold: bool) {
     h.get_by_label_contains("OK").click();
     h.run_steps(3);
@@ -119,6 +130,7 @@ fn confirm_custom_date(h: &mut Harness, literal: bool, bold: bool) {
     assert_eq!(back.styles.get(sh.style_id(at)).num_fmt, st.num_fmt);
 }
 
+/// Confirming an unchanged Format Cells dialog retains the imported literal date.
 #[test]
 fn opening_and_confirming_format_cells_keeps_custom_date_identity() {
     let mut h = custom_date_dialog();
@@ -126,6 +138,7 @@ fn opening_and_confirming_format_cells_keeps_custom_date_identity() {
     assert!(painted(&h, "1/1/2024"));
 }
 
+/// Changing only the font retains the imported custom number-format identity.
 #[test]
 fn changing_font_in_format_cells_keeps_custom_date_identity() {
     let mut h = custom_date_dialog();
@@ -136,6 +149,7 @@ fn changing_font_in_format_cells_keeps_custom_date_identity() {
     confirm_custom_date(&mut h, true, true);
 }
 
+/// Preset, shortcut and code-field edits intentionally replace the imported custom identity.
 #[test]
 fn intentional_number_format_edits_can_replace_custom_date_identity() {
     for edit in ["preset", "button", "type"] {

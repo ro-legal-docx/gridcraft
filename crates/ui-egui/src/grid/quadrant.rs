@@ -289,6 +289,8 @@ fn should_expand_text(filter_space: f32, overflows: bool, across_end: u32, col: 
     filter_space == 0.0 && (overflows || across_end > col) && !in_merge
 }
 
+/// Paint a cell with its effective style and display locale, respecting merges, clipping
+/// and the available text width.
 fn paint_cell(q: &QuadrantPaint<'_>, painted: &(CellRef, Rect, Look, Option<CfLook>), merges: &[RangeRef]) {
     let (cell, rect, lk, cfl) = painted;
     let c = *cell;

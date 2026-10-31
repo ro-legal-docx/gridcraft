@@ -6,6 +6,14 @@ co-author metadata. The adaptation ports painting and AutoFit changes to the cur
 adds Romanian conventions and addresses the numeric short-date case reported in
 [#2869](https://github.com/storytold/gridcraft/issues/2869).
 
+## Review maintenance — 2026-10-31
+
+The function contracts touched by this PR now document locale selection, literal custom-format
+identity, numeric ICU conversion, on-screen painting, AutoFit and the existing synthetic
+regressions. This is documentation only: executable Rust and test assertions are unchanged.
+The original five commits from @pick2510 remain ancestors. The compatibility limits below
+and the localization readiness estimate are unchanged.
+
 ## Behavior
 
 - `ro-RO` (also `ro`, `en-RO`, `ro_RO.UTF-8`) displays `1234567.89` with `#,##0.00`

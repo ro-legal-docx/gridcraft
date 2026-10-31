@@ -1,6 +1,6 @@
 # Localization parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-30 · **Change:** minor (Format Cells retains custom short-date identity; standard built-in DXF aliases normalize by ID) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-31 · **Change:** trivial (document regional display and regression-test contracts; executable Rust unchanged) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
 
 Per-language status against Excel, which ships its UI in dozens of languages (Windows language
 packs cover 100+), with localized function names, argument separators, number and date formats,
@@ -118,6 +118,7 @@ language (none so far) and of localized function names.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-31 | trivial | Document the regional-display functions and regression contracts touched by #2933; no executable Rust changes or readiness reassessment. |
 | 2026-10-30 | minor | #2933 follow-up: Format Cells only replaces a number format after a number-format edit; standard built-in DXF aliases normalize by ID while custom codes remain literal |
 | 2026-10-30 | minor | #2933 review: differential number formats preserve built-in IDs 14/22 and regional display; custom or missing IDs retain literal short-date aliases through repeated XLSX save/reopen |
 | 2026-10-29 | minor | Adapt #2263 by @pick2510 to the modular grid and AutoFit; add Romanian separators, region overrides, macOS numeric short-date customizations (#2869), and retention of custom XLSX short-date aliases through save/reopen |

@@ -201,6 +201,7 @@ fn axis_labels_use_number_format() {
     assert!(t.contains(&"$40,000"));
 }
 
+/// Chart resolution reads series, categories and formatted labels from workbook cells.
 #[test]
 fn resolve_from_workbook() {
     let mut wb = Workbook::new();

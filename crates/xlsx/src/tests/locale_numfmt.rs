@@ -96,6 +96,7 @@ fn dxf_date_round_trip(id: Option<u32>, code: &str, expected_code: &str, builtin
     }
 }
 
+/// Explicit DXF short-date codes with IDs 14/22 retain built-in regional identity across round trips.
 #[test]
 fn dxf_builtin_short_dates_keep_regional_identity_and_builtin_ids() {
     for (id, code) in [(14, "m/d/yyyy"), (22, "m/d/yyyy h:mm")] {
@@ -103,6 +104,7 @@ fn dxf_builtin_short_dates_keep_regional_identity_and_builtin_ids() {
     }
 }
 
+/// Custom or absent DXF IDs keep explicit short-date aliases literal across round trips.
 #[test]
 fn dxf_custom_and_missing_ids_keep_literal_short_dates() {
     for id in [Some(164), Some(165), None] {
@@ -112,6 +114,7 @@ fn dxf_custom_and_missing_ids_keep_literal_short_dates() {
     }
 }
 
+/// Standard short-date spellings normalize by built-in DXF ID, including case variants.
 #[test]
 fn dxf_standard_short_date_aliases_use_canonical_builtin_formats() {
     for (id, code, canonical) in [
@@ -125,6 +128,7 @@ fn dxf_standard_short_date_aliases_use_canonical_builtin_formats() {
     }
 }
 
+/// Explicit custom standard-date aliases retain their exact code and custom ID on export.
 #[test]
 fn explicit_custom_standard_aliases_keep_their_code_and_custom_id() {
     for code in ["mm-dd-yy", "MM-DD-YY", "m/d/yy h:mm", "M/D/YY H:MM"] {

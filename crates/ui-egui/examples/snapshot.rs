@@ -10,6 +10,8 @@ use gridcraft_engine::Session;
 use gridcraft_ui_egui::SheetApp;
 use serde_json::json;
 
+/// Render an offscreen workbook snapshot, applying the locale override before commands
+/// so AutoFit and the captured grid use the same display conventions.
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut sample = None;

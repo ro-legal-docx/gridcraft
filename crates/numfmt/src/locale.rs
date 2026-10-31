@@ -12,6 +12,7 @@ pub struct Locale {
 }
 
 impl Default for Locale {
+    /// Use en-US display conventions when no region has been selected.
     fn default() -> Self {
         Self::EN_US
     }
@@ -67,6 +68,7 @@ impl Locale {
         self
     }
 
+    /// Return a changed regional display code for either canonical short-date family.
     pub(crate) fn display_code(&self, code: &str) -> Option<String> {
         match code {
             "m/d/yyyy" => Some(self.short_date.to_string()),
@@ -77,6 +79,8 @@ impl Locale {
     }
 }
 
+/// Extract a valid POSIX or Unicode `rg` region override, ignoring private-use subtags.
+/// POSIX overrides take precedence and the returned region is uppercase.
 fn region_override(tag: &str, base: &str) -> Option<String> {
     let posix = tag
         .split_once('@')
@@ -92,6 +96,8 @@ fn region_override(tag: &str, base: &str) -> Option<String> {
         .then(|| region.to_ascii_uppercase())
 }
 
+/// Convert a bounded numeric ICU pattern to Excel date tokens, retaining supported literals.
+/// Require day, month and calendar year once each; reject unsupported tokens or broken quotes.
 fn numeric_short_date(pattern: &str) -> Option<String> {
     if pattern.len() > 1024 {
         return None;
@@ -159,6 +165,7 @@ fn numeric_short_date(pattern: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Romanian defaults and explicit region overrides win independently of interface language.
     #[test]
     fn romanian_region_and_overrides() {
         for tag in ["ro", "ro-RO", "ro_RO.UTF-8", "en-RO", "ro-Latn-RO", "en_US@rg=rozzzz", "en-US-u-rg-rozzzz"] {
@@ -170,6 +177,8 @@ mod tests {
         assert_eq!(Locale::from_tag("en-US-x-u-rg-rozzzz"), Locale::EN_US);
         assert_eq!(Locale::from_tag("en_US@RG=roZzZz"), Locale::from_tag("ro-RO"));
     }
+    /// Numeric ICU conversion preserves supported year widths and quoted literals,
+    /// and declines ambiguous or unsupported date patterns.
     #[test]
     fn system_numeric_patterns_preserve_year_width_and_literals() {
         for (input, expected) in [

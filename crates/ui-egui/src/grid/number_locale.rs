@@ -55,6 +55,7 @@ fn region_tag_from_env(var: impl Fn(&str) -> Option<String>) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    /// Numeric locale environment settings take precedence over interface-language settings.
     #[test]
     fn numeric_region_ignores_interface_language() {
         let pick = |vars: &[(&str, &str)]| region_tag_from_env(|k| vars.iter().find(|(name, _)| *name == k).map(|(_, value)| value.to_string()));

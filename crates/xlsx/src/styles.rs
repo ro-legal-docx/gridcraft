@@ -277,6 +277,7 @@ fn read_protection(p: &El) -> Protection {
     Protection { locked: p.flag("locked", true), hidden: p.flag("hidden", false) }
 }
 
+/// Resolve a style format ID, marking explicit custom codes so short-date aliases remain literal.
 fn num_fmt_code(id: u32, custom: &HashMap<u32, String>) -> NumFmt {
     if let Some(c) = custom.get(&id) {
         return NumFmt::custom(c);
@@ -609,15 +610,18 @@ struct NumFmts {
 }
 
 impl NumFmts {
+    /// Reuse a recognized built-in ID or allocate a custom ID for an ordinary format code.
     fn id(&mut self, code: &str) -> u32 {
         if let Some(id) = builtin_id(code) {
             return id;
         }
         self.custom_id(code)
     }
+    /// Force marked literal short-date aliases to custom IDs even when their code matches a built-in.
     fn format_id(&mut self, fmt: &NumFmt) -> u32 {
         if fmt.is_literal_short_date() { self.custom_id(fmt.as_str()) } else { self.id(fmt.as_str()) }
     }
+    /// Intern an exact custom code, reusing its assigned ID or allocating one from 164.
     fn custom_id(&mut self, code: &str) -> u32 {
         if let Some(&id) = self.map.get(code) {
             return id;

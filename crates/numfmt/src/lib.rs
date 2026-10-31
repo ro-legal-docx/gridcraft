@@ -280,6 +280,8 @@ impl NumberFormat {
         self.format_number_in(n, sys, &Locale::EN_US)
     }
 
+    /// Select and render the numeric section using the region's separators and short date.
+    /// The returned flag reports date/format overflow rather than a stored-value change.
     fn format_number_in(&self, n: f64, sys: DateSystem, loc: &Locale) -> (Formatted, bool) {
         let general = |n: f64| Formatted {
             text: localize_general(format_general_fit(n, GENERAL_WIDTH).unwrap_or_else(|| OVERFLOW.into()), loc),
