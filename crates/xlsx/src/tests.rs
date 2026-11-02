@@ -9,6 +9,7 @@ mod chart_ref_offsets;
 mod csv_tests;
 mod encrypted_tests;
 mod fixtures;
+mod function_prefixes;
 mod google_sheets_dummy;
 mod ink_roundtrip;
 mod literal_category_roundtrip;
