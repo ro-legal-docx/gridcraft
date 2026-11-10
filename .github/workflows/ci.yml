@@ -7,7 +7,7 @@ jobs:
   labels:
     uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
     with:
-      os: '["ubuntu-24.04","macos-15"]'
+      os: '["macos-15-intel"]'
       packages: >-
         pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev
         libgtk-3-dev libfontconfig1-dev libfreetype-dev mesa-vulkan-drivers
