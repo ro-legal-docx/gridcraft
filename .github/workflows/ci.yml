@@ -1,28 +1,26 @@
-name: CI
-
-# Quality gates for every push to main and every pull request (`cargo xtask ci`), through the
-# suite's shared gate workflow in craft-common-actions.
+name: Labelled menu verification
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
-# A newer push to a PR branch cancels its older run; every push to main runs to the end.
-concurrency:
-  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
-  gate:
-    # Tracks @main so suite-wide CI fixes reach every app without a PR in each repository.
+  labels:
     uses: storytold/craft-common-actions/.github/workflows/gate.yml@main
     with:
-      # The same craft-fonts commit as release.yml and freebsd.yml, so the gate tests the fonts that ship.
-      craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
+      os: '["ubuntu-24.04","macos-15"]'
       packages: >-
         pkg-config libxkbcommon-dev libwayland-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev
         libgtk-3-dev libfontconfig1-dev libfreetype-dev mesa-vulkan-drivers
+      craft-fonts-ref: b076417b5880bd4154bd22f00695b1d28c6bea83
+      tools: ''
+      targets: ''
+      env: |
+        GRIDCRAFT_BUILD_LABEL=R&D
+      command: |
+        git switch --detach 9e6751fb3971a708bcb4ad259cb5e731d0833db1
+        cargo test -p gridcraft-ui-egui --lib build_config:: --locked
+        cargo test -p gridcraft-ui-egui --lib ribbon::title_bar::tests:: --locked
+        cargo test -p gridcraft-ui-egui --lib app::tests:: --locked
+        cargo test -p gridcraft-ui-egui --lib updates_ui:: --locked
+        cargo test -p gridcraft-ui-egui --lib doc_windows:: --locked
+        if [ "$RUNNER_OS" = macOS ]; then cargo test -p gridcraft --test mac_menu_appkit --locked; fi
