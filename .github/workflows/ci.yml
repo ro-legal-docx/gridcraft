@@ -17,6 +17,7 @@ jobs:
       env: |
         GRIDCRAFT_BUILD_LABEL=R&D
       command: |
+        git fetch --depth 1 origin 9e6751fb3971a708bcb4ad259cb5e731d0833db1
         git switch --detach 9e6751fb3971a708bcb4ad259cb5e731d0833db1
         cargo test -p gridcraft-ui-egui --lib build_config:: --locked
         cargo test -p gridcraft-ui-egui --lib ribbon::title_bar::tests:: --locked
