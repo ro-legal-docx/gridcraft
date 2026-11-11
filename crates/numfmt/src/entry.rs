@@ -141,4 +141,24 @@ mod tests {
             }
         }
     }
+    #[test]
+    fn conditional_date_entry_uses_the_selected_section_and_rejects_ambiguity() {
+        let ro = Locale::from_tag("ro-RO");
+        for sys in [DateSystem::D1900, DateSystem::D1904] {
+            let Value::Number(january) = parse_input("2026-01-01", sys).value else { panic!("date fixture") };
+            let Value::Number(march) = parse_input("2026-03-20", sys).value else { panic!("date fixture") };
+            let selected = format!("[<{january}]mm/dd/yyyy;dd/mm/yyyy");
+            for (input, expected) in [("04/03/2026", "2026-03-04"), ("04/03/2026 15:00", "2026-03-04 15:00")] {
+                assert_eq!(parse_input(&ro.canonical_input(input, sys, &selected), sys).value, parse_input(expected, sys).value);
+            }
+            for code in [format!("[<{march}]dd/mm/yyyy;mm/dd/yyyy"), format!("[<{march}]mm/dd/yyyy;dd/mm/yyyy")] {
+                for input in ["04/03/2026", "04/03/2026 15:00", " 04/03/2026 "] {
+                    assert_eq!(parse_input(&ro.canonical_input(input, sys, &code), sys).value, Value::text(input));
+                }
+                assert_eq!(parse_input(&ro.canonical_input("2026-03-04", sys, &code), sys).value, parse_input("2026-03-04", sys).value);
+            }
+            let same_order = format!("[<{march}]dd/mm/yyyy;dd/mm/yyyy");
+            assert_eq!(parse_input(&ro.canonical_input("04/03/2026", sys, &same_order), sys).value, parse_input("2026-03-04", sys).value);
+        }
+    }
 }
