@@ -154,3 +154,7 @@ The shared SYLK adapter retains explicit custom short-date identity. Repeated in
 conditional formats still share their code allocation, with built-in and custom date
 identities kept separate. Synthetic regressions cover both DXF orders and SYLK import.
 The shared encryption adapter and both sets of lockfile dependencies are retained.
+
+Clipboard numeric metadata uses compact round-trippable exponential notation within the reader's
+64-byte limit. Synthetic English/Romanian round trips preserve tiny values and subnormal numbers
+even when the cell's displayed two-decimal text is zero.

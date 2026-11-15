@@ -554,7 +554,7 @@ fn regional_clipboard_validates_rounded_number_metadata_and_currency_format() {
     assert_eq!(sh.value(CellRef::new(0, 1)), Value::Number(10000.125));
     assert_eq!(cell_text_in(wb, sh, CellRef::new(0, 0), &Locale::from_tag("ro-RO")), "1,23");
     assert_eq!(cell_text_in(wb, sh, CellRef::new(0, 1), &Locale::from_tag("ro-RO")), "RON 10.000,13");
-    let bad_html = copied["html"].as_str().unwrap().replacen("data-gridcraft-number-v1=\"1.234567\"", "data-gridcraft-number-v1=\"999\"", 1);
+    let bad_html = copied["html"].as_str().unwrap().replacen("data-gridcraft-number-v1=\"1.234567e0\"", "data-gridcraft-number-v1=\"999\"", 1);
     assert_ne!(bad_html, copied["html"].as_str().unwrap());
     let mut clean = Session::new();
     clean.new_workbook();
@@ -649,5 +649,28 @@ fn interactive_conditional_dates_round_trip_the_selected_section() {
         let at = CellRef::parse(cell).unwrap();
         assert_eq!(sh.value(at), expected, "{cell}");
         assert_eq!(gridcraft_engine::display::cell_text_in(wb, sh, at, &loc), "04/03/2026");
+    }
+}
+
+/// A displayed zero must retain tiny nonzero values through an external HTML clipboard round trip.
+#[test]
+fn regional_clipboard_compact_metadata_preserves_tiny_values() {
+    for tag in ["en-US", "ro-RO"] {
+        let locale = Locale::from_tag(tag);
+        for value in [1e-100_f64, -1e-100, 1e-300, f64::from_bits(1)] {
+            let mut source = Session::new();
+            source.new_workbook();
+            source.execute("range.setValues", json!({"range":"A1","values":[[value]]})).unwrap();
+            source.execute("home.formatCells", json!({"range":"A1","style":{"num_fmt":"0.00"}})).unwrap();
+            let copied = source.run_interactive("edit.copy", json!({"range":"A1","html":true}), &locale).unwrap();
+            let html = copied["html"].as_str().unwrap();
+            let numeric = html.split("data-gridcraft-number-v1=\"").nth(1).unwrap().split('"').next().unwrap();
+            assert!(numeric.len() <= 64, "{tag}: {numeric}");
+            let mut dest = Session::new();
+            dest.new_workbook();
+            dest.run_interactive("edit.paste", json!({"at":"A1","text":copied["text"],"html":copied["html"]}), &locale).unwrap();
+            let restored = dest.active().unwrap().wb.sheet(0).unwrap().value(CellRef::new(0, 0)).as_f64().unwrap();
+            assert_eq!(restored.to_bits(), value.to_bits(), "{tag}, {value:e}");
+        }
     }
 }

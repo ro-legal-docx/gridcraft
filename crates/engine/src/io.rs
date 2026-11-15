@@ -766,7 +766,8 @@ pub(crate) fn range_html(wb: &Workbook, sheet: usize, r: RangeRef, plain_text: &
             if let gridcraft_core::Value::Number(value) = sh.value(c)
                 && value.is_finite()
             {
-                write!(number, " data-gridcraft-number-v1=\"{value}\"").ok()?;
+                // Exponential notation round-trips finite scalars within the reader's 64-byte cap.
+                write!(number, " data-gridcraft-number-v1=\"{value:e}\"").ok()?;
                 let stored_format = &wb.styles.get(sh.style_id(c)).num_fmt;
                 let captured_format = if stored_format.as_str().chars().take(256).count() <= 255 {
                     stored_format.clone()
