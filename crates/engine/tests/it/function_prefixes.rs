@@ -264,7 +264,7 @@ fn namespace_text_in_a_string_does_not_override_imported_function_spelling() {
     let mut s = session();
     s.execute("cell.set", json!({"cell":"B1","input":"=SYNTHETICFUTURE(\"_xlfn.OTHER(A1)\")"})).unwrap();
     let xml = saved_xml(&mut s);
-    assert!(xml.contains("<f>_xlfn.SYNTHETICFUTURE("), "{xml}");
+    assert!(xml.contains(r#">_xlfn.SYNTHETICFUTURE("_xlfn.OTHER(A1)")</f>"#), "{xml}");
 }
 
 /// A prefix on one function must not suppress another function's required canonical XLSX prefix.
