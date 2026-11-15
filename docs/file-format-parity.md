@@ -268,3 +268,10 @@ Imported function namespaces survive the borrowed-tree structural edit paths and
 cached-tree deserializer. Shared-formula expansion retains the upstream byte allowance,
 length refusal and Google Sheets dynamic-array marks, including the stored namespace cost.
 Both upstream and namespace-preservation regression suites remain in place.
+
+### Imported namespaces through legacy intersection — 2026-11-15
+
+Legacy formula analysis retains per-occurrence namespaces when it adds implicit
+intersection operators on import and removes those operators on save. The XLSX
+regression reads and writes unknown calls twice with explicit function facts;
+command-level argument-edit and explicit-prefix undo/reopen regressions remain in place.

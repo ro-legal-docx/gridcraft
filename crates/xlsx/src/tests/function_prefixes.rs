@@ -119,3 +119,21 @@ fn unicode_literals_within_character_limit_keep_future_namespaces() {
     assert!(formula.chars().count() < gridcraft_formula::MAX_FORMULA_LEN);
     roundtrip_formula(&formula);
 }
+
+/// Legacy implicit-intersection analysis must retain namespaces while adding and removing `@`.
+#[test]
+fn legacy_intersection_roundtrip_keeps_imported_call_namespaces() {
+    let functions = crate::FunctionInfo { is_builtin: |_| false, is_scalar_arg: |_, _| true };
+    for source in ["_xlfn.SYNTHETICFUTURE(B1)", "SYNTHETICFUTURE(B1)+_xlfn.SYNTHETICFUTURE(C1)"] {
+        let xml = format!(r#"<sheetData><row r="1"><c r="A1"><f>{source}</f><v>7</v></c></row></sheetData>"#);
+        let mut bytes = minimal(&xml, &[], "", "");
+        for _ in 0..2 {
+            let (wb, _) = crate::read_xlsx_with(&bytes, functions).unwrap();
+            let formula = wb.sheet(0).unwrap().cell(CellRef::new(0, 0)).unwrap().formula.as_ref().unwrap();
+            assert!(formula.text.contains('@'), "legacy analysis must run: {}", formula.text);
+            assert!(!formula.file_functions.is_empty(), "read must retain imported namespaces");
+            bytes = crate::write_xlsx_with(&wb, crate::XlsxKind::Workbook, functions).unwrap();
+            assert_eq!(formulas(&bytes)["A1"], source);
+        }
+    }
+}
