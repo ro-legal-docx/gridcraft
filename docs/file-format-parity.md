@@ -1,6 +1,6 @@
 # File-format parity
 
-> **Last reviewed:** 2026-11-01 · **Last updated:** 2026-11-15 · **Change:** minor (saved XLS array results and cache-preserving calculation retained with deterministic spill precedence; earlier: PDF honours cell reading direction and mirrors right-to-left sheets; earlier: Arabic PDF export no longer fails when a character or the Arabic font is missing; earlier: Arabic PDF text is shaped with embedded Noto Arabic glyphs beside the non-embedded standard, Symbol and CID fonts; earlier: .xls data validation is read; earlier: .xls is read by the shared craft-xls crate: the workbook opens on the sheet it was saved on, and rich-text (RString) cells are read; earlier: form controls: buttons, scroll bars and spin buttons read and written; earlier: a web page's first table opens as a sheet, also when the page is named `.xls`; earlier: `workbookPr filterPrivacy` kept, and honoured on save; earlier: a workbook's R1C1 reference style, `calcPr refMode`, is kept through open and save; earlier: XLSX page margins are written as their decimals, `0.3` rather than `0.30000001192092896`; earlier: Python cells in `.xlsx` as [MS-XLSX] specifies, `_xlfn._xlws.PY(…)` naming code in the Python part, with cached values, and in GridCraft JSON, with limits on open; earlier: equations in xlsx as Office Math with a marker in `descr` so an edit made in Excel reads back, read back only up to the equation source cap, and a brace with a label and a script on its other side keeps both; Symbol font in PDF; earlier: XLSX reads and writes Page Setup's page order, `pageSetup pageOrder`, and PDF export follows it; earlier: chart data tables: native c:dTable import/export; earlier: XLSX workbook-view selection, normalized tab ratios and sheet-edit regressions; fidelity estimates unchanged; earlier: formulas from Google Sheets' XLSX export open as the original formula instead of `IFERROR(__xludf.DUMMYFUNCTION(…),…)` when GridCraft calculates every function in it, and save as it; `file.exportCsv {values: true}` writes raw values for automation; .xls dialog sheets are skipped instead of read as worksheets; `.xls` import reads each sheet's display options from WINDOW2: right-to-left, gridlines, headings, zeros, formulas; XLSX text boxes and shapes keep their paragraphs' right-to-left direction on save; CSV/TSV/TXT can open with every field kept as text via `file.open {csvAsText}`; formulas over Excel's 8,192 characters, and `%` or call chains past the nesting limit, are parse errors instead of stack overflows when a file is opened; XLSX PivotTables read and write `rowGrandTotals`/`colGrandTotals` the way Excel does, so a table saved with only one grand total opens with the right one; HTML export keeps right-to-left; CSV and text import detects likely Windows-1256 Arabic when invalid UTF-8 has Arabic byte runs; other invalid UTF-8 remains Windows-1252; HTML export places pictures and charts, as inline SVG, at their anchors; earlier: `file.exportCsv {values: true}` writes raw values for automation; .xls dialog sheets are skipped instead of read as worksheets; `.xls` import reads each sheet's display options from WINDOW2: right-to-left, gridlines, headings, zeros, formulas; XLSX text boxes and shapes keep their paragraphs' right-to-left direction on save; CSV/TSV/TXT can open with every field kept as text via `file.open {csvAsText}`; formulas over Excel's 8,192 characters, and `%` or call chains past the nesting limit, are parse errors instead of stack overflows when a file is opened; XLSX PivotTables read and write `rowGrandTotals`/`colGrandTotals` the way Excel does, so a table saved with only one grand total opens with the right one; HTML export keeps right-to-left; CSV and text import detects likely Windows-1256 Arabic when invalid UTF-8 has Arabic byte runs; other invalid UTF-8 remains Windows-1252; HTML export places pictures and charts, as inline SVG, at their anchors; CSV and text open detects each column's date order from values that read only one way, warns when every date is ambiguous, and keeps a column with both kinds as text (#2765)) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
+> **Last reviewed:** 2026-11-01 · **Last updated:** 2026-11-13 · **Change:** minor (PDF honours cell reading direction and mirrors right-to-left sheets; earlier: Arabic PDF export no longer fails when a character or the Arabic font is missing; earlier: Arabic PDF text is shaped with embedded Noto Arabic glyphs beside the non-embedded standard, Symbol and CID fonts; earlier: .xls data validation is read; earlier: .xls is read by the shared craft-xls crate: the workbook opens on the sheet it was saved on, and rich-text (RString) cells are read; earlier: form controls: buttons, scroll bars and spin buttons read and written; earlier: a web page's first table opens as a sheet, also when the page is named `.xls`; earlier: `workbookPr filterPrivacy` kept, and honoured on save; earlier: a workbook's R1C1 reference style, `calcPr refMode`, is kept through open and save; earlier: XLSX page margins are written as their decimals, `0.3` rather than `0.30000001192092896`; earlier: Python cells in `.xlsx` as [MS-XLSX] specifies, `_xlfn._xlws.PY(…)` naming code in the Python part, with cached values, and in GridCraft JSON, with limits on open; earlier: equations in xlsx as Office Math with a marker in `descr` so an edit made in Excel reads back, read back only up to the equation source cap, and a brace with a label and a script on its other side keeps both; Symbol font in PDF; earlier: XLSX reads and writes Page Setup's page order, `pageSetup pageOrder`, and PDF export follows it; earlier: chart data tables: native c:dTable import/export; earlier: XLSX workbook-view selection, normalized tab ratios and sheet-edit regressions; fidelity estimates unchanged; earlier: formulas from Google Sheets' XLSX export open as the original formula instead of `IFERROR(__xludf.DUMMYFUNCTION(…),…)` when GridCraft calculates every function in it, and save as it; `file.exportCsv {values: true}` writes raw values for automation; .xls dialog sheets are skipped instead of read as worksheets; `.xls` import reads each sheet's display options from WINDOW2: right-to-left, gridlines, headings, zeros, formulas; XLSX text boxes and shapes keep their paragraphs' right-to-left direction on save; CSV/TSV/TXT can open with every field kept as text via `file.open {csvAsText}`; formulas over Excel's 8,192 characters, and `%` or call chains past the nesting limit, are parse errors instead of stack overflows when a file is opened; XLSX PivotTables read and write `rowGrandTotals`/`colGrandTotals` the way Excel does, so a table saved with only one grand total opens with the right one; HTML export keeps right-to-left; CSV and text import detects likely Windows-1256 Arabic when invalid UTF-8 has Arabic byte runs; other invalid UTF-8 remains Windows-1252; HTML export places pictures and charts, as inline SVG, at their anchors; earlier: `file.exportCsv {values: true}` writes raw values for automation; .xls dialog sheets are skipped instead of read as worksheets; `.xls` import reads each sheet's display options from WINDOW2: right-to-left, gridlines, headings, zeros, formulas; XLSX text boxes and shapes keep their paragraphs' right-to-left direction on save; CSV/TSV/TXT can open with every field kept as text via `file.open {csvAsText}`; formulas over Excel's 8,192 characters, and `%` or call chains past the nesting limit, are parse errors instead of stack overflows when a file is opened; XLSX PivotTables read and write `rowGrandTotals`/`colGrandTotals` the way Excel does, so a table saved with only one grand total opens with the right one; HTML export keeps right-to-left; CSV and text import detects likely Windows-1256 Arabic when invalid UTF-8 has Arabic byte runs; other invalid UTF-8 remains Windows-1252; HTML export places pictures and charts, as inline SVG, at their anchors; CSV and text open detects each column's date order from values that read only one way, warns when every date is ambiguous, and keeps a column with both kinds as text (#2765)) · **Target:** Microsoft Excel (Microsoft 365), Excel for Mac 16.113.4
 
 Every format Excel opens or saves, with GridCraft's read and write support, fidelity and tests.
 Part of [target-app-parity.md](target-app-parity.md). **File formats: ~50% ready, 80–120 h**
@@ -15,39 +15,6 @@ Legacy scalar `INDEX(range, MATCH(...))` formulas remain ordinary formulas on sa
 shared formulas are expanded during import (`array_export.rs`, #1505).
 
 Arabic PDF output uses harfrust shaping, Unicode bidi and licensed Noto Arabic glyph outlines with ToUnicode and logical ActualText. Cells, headers and chart labels support marks, digits, rotation and style. Bundled builds use the optional `CRAFT_FONTS_DIR` input; unbundled native builds look for Noto Sans Arabic. Characters the Arabic face lacks fall back to the standard and CID fonts, and without an Arabic face for the text's weight Arabic is set in the CID font, which has no Arabic glyphs, with a message. Cell Context/LTR/RTL direction is carried through measurement, wrapping and drawing. RTL sheet geometry mirrors while text stays readable. Latin-only RTL text uses bidi ordering without requiring an Arabic font.
-
-## Saved formula results on open (#2770)
-XLSX legacy and dynamic arrays retain their stored follower values and declared ranges in
-spill storage. They are not ordinary cells that block later recalculation. Synthetic controls
-cover unsupported cached anchors, zero, empty text, false and errors across unrelated edits
-and save/reopen, plus row/column shifts of legacy array ranges. Sparse followers beyond
-a million positions survive export without enumerating the declared area. Legacy-array
-ranges protect partial content edits even when follower caches are sparse or empty;
-formatting and whole-array replacement remain supported. Clear Contents/Clear All also
-reject partial selections before changing the workbook; whole-array clears accept unions
-of areas but exclude filter-hidden rows from coverage. Missing cache entries are not
-reconstructed and no native Excel corpus qualification is claimed. A missing explicitly
-marked array anchor keeps stored followers when its calculation fails or produces no
-placeable replacement array; a successful replacement still supersedes old results. The
-freshness notice covers follower-only caches. Accepted multi-cell ranges keep their
-metadata even after single-cell metadata admission reaches its limit; the existing
-multi-cell count, area and scan-work budgets remain in force.
-`file.open` keeps nonempty formula caches and fills absent results unless the workbook
-requests `fullCalcOnLoad`. An explicit `recalculate: true` or `recalculate: false` wins over
-that flag. The info bar reports the chosen policy without a modal message box. Normal argument
-edits invalidate their dependents, while unrelated edits no longer invalidate a saved
-unresolved function solely because its name is unknown. Calculate Now and structural
-edits still recalculate all formulas, which can replace unsupported results with errors.
-The synthetic lifecycle checks are in `crates/engine/tests/it/cached_open.rs`; they do not
-prove cache freshness or arbitrary Excel-authored file fidelity. This open policy uses
-#2308's additive calculation API rather than duplicating it.
-The deterministic spill-precedence integration keeps imported followers fixed during missing-only
-opening, including when an earlier missing anchor has a recorded range of its own. Explicit full
-and incremental recalculation retain upstream's standing/reading-order behavior. A synthetic
-calc control covers both cache variants and the later explicit recalculation transition.
-
-Native JSON rejects invalid cached spill ranges rather than discarding metadata that protects
-array contents. The error identifies the offending anchor cell.
 
 Cell text now uses shared Unicode bidi layout while retaining logical source indexes for editing, copy and XLSX. Format Cells exposes Context, Left to right and Right to left reading direction, independent of sheet geometry. OOXML Context uses the first non-whitespace character. Optional direction preserves absent versus explicit Context in differential styles. The renderer is pinned to a reviewed egui 0.36.2 backport with real-font, editing, accessibility and WASM checks. Physical screen-reader behavior remains unverified.
 
@@ -196,14 +163,9 @@ refresh. Counted under features (Get & Transform, ~10% ready), not here.
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-11-15 | minor | Keep sparse saved XLS array results through the craft-xls adapter and retain unknown-function dependency behavior after the iterative precedent collector refactor; all earlier cache-preserving regressions remain. |
 | 2026-11-13 | minor | PDF of a right-to-left sheet keeps explicit Left and Right alignment on the side the grid shows them |
 | 2026-11-12 | minor | `.xls` files open with their data validation (drop-down lists, input messages, error alerts and the rules), read by craft-xls and mapped as the `.xlsx` reader maps the same rules. A rule Excel would refuse, or one past 65,536 in a workbook, is skipped with a warning (#3634, from #3636) |
 | 2026-11-12 | minor | .xls import reads the file with craft-xls (storytold/craft-libs), the reader that moved there from this repository; GridCraft keeps the mapping onto its model. The workbook now opens on the sheet it was saved on (WINDOW1 `itabCur`), falling back to the first visible sheet as before (from #3551), and cells saved as RString records (text with formatting runs) are read as text instead of skipped |
-| 2026-11-11 | trivial | Invalid native JSON spill-cache diagnostics name the offending anchor; strict rejection protects array contents. A calculation regression checks cached unknown calls with explicit argument dependencies after graph rebuild. |
-| 2026-11-10 | minor | XLS import moves stored legacy-array followers into sparse spill caches and keeps declared ranges before cached open; genuinely absent followers stay sparse, while unsupported formulas keep their values as ordinary cells. |
-| 2026-11-10 | minor | Native JSON retains sparse spill values and ranges, including unmarked and unsupported arrays, without evaluating cached formulas; older JSON that omitted spill data requires explicit recalculation to reconstruct supported arrays. |
-| 2026-11-10 | minor | Honour fullCalcOnLoad unless an explicit recalculation parameter overrides it; report the chosen policy in the info bar without a modal; keep the writer's missing-result flag and explicitly unflag cache-preserving fixtures. |
 | 2026-11-10 | minor | `.xls` import: every formula except a Ctrl+Shift+Enter array is read as a legacy one with Excel's implicit `@` (a title row `=Other!A1:G1` shows its first cell instead of `#SPILL!`), one-cell Ctrl+Shift+Enter arrays stay arrays, and `@` of a 2-D range meets the formula's row and column (#410, PR #1367) |
 | 2026-11-09 | minor | Arabic PDF export no longer fails on a character the Arabic face lacks (it falls back like other text) or when no Arabic font is available (Arabic is set in the CID font, which has no Arabic glyphs, and a message says so) |
 | 2026-11-03 | trivial | The PDF row lists Arabic's shaped, embedded Noto glyphs beside the non-embedded standard faces, Symbol and the Adobe-GB1 CID font; Symbol text keeps its own encoding and is never shaped as Arabic |
@@ -228,12 +190,6 @@ refresh. Counted under features (Get & Transform, ~10% ready), not here.
 | 2026-11-01 | trivial | XLSX selects the first visible workbook view as one unit and bounds imported/exported tab ratios; isolated attributes and sheet-edit round trips covered, with firstSheet left to #2264 (#3057) |
 | 2026-10-31 | minor | CSV and text open detects each column's date order: a value that reads only day first (`31/05/2026`) makes the column day first, a value that reads only month first (`12/31/2026`) makes it month first, an all-ambiguous column keeps month first with a warning, and a column with both kinds stays text with a warning (#2765) |
 | 2026-10-31 | minor | XLSX open reads Google Sheets' `IFERROR(__xludf.DUMMYFUNCTION("…"),cached)` export wrapper as the formula inside when GridCraft calculates every function in it (plain, shared and array formulas, whole or nested; Google-only functions and unparseable, over-long or over-deep inner text keep the wrapper and the cached value) and keeps the cached value; saving writes the real formula with Excel's `_xlfn.` prefixes (#2871) |
-| 2026-10-30 | minor | Reject partial Clear Contents/Clear All selections inside legacy arrays using declared ranges, including missing cached followers; allow whole-array selection unions and respect filter-hidden rows. |
-| 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
-| 2026-10-30 | minor | Keep stored array followers when a missing anchor cannot produce a replacement; retain accepted multi-cell range metadata after single-cell metadata saturation; include follower-only caches in the freshness notice. |
-| 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
-| 2026-10-28 | trivial | Keep the stale formula-cache warning visible ahead of overflowing import warnings; a synthetic XLSX regression verifies the visible notice, retained warnings and overflow count |
-| 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |
 | 2026-10-26 | minor | PDF honors cell Context/LTR/RTL, preserves paragraph direction across wrapping, and mirrors RTL sheet geometry without reversing glyphs |
 | 2026-10-26 | minor | Arabic PDF export embeds licensed glyph outlines, joins letters and marks, preserves logical text and reports unsupported glyphs before writing; Arabic runs take the embedded faces ahead of the CJK CID font, and CJK inside Arabic text is set in the CID font instead of failing the export |
 | 2026-10-26 | minor | Alignment readingOrder 0/1/2 survives cell, named-style and differential-style round-trips; Format Cells exposes reading direction and CF priority preserves unspecified inheritance |
@@ -284,7 +240,49 @@ refresh. Counted under features (Get & Transform, ~10% ready), not here.
 | 2026-10-10 | minor | Encrypted and `.xls` files are now recognised and refused with a message (#17) |
 | 2026-10-10 | major | Created: every Excel format with our read/write support; XLSB and ODS values-only imports recorded; `.xls`, encryption and large files flagged as beta gates |
 
-### Shared-reader integration for saved XLS arrays
+
+## Contribution #2824 — scoped notes
+
+> **Last updated:** 2026-11-15 · These notes describe this contribution. The mainline assessment and progress tables above are retained verbatim from `1d0b311b4a94`. The contribution does not revise the mainline readiness estimates.
+
+The behavior described in these scoped notes applies to this branch and supersedes corresponding older baseline statements above. Dated rows below record the contribution history, rather than adding a new claim of general parity.
+
+Topic change: saved XLS array results and cache-preserving calculation retained with deterministic spill precedence.
+
+### Saved formula results on open (#2770)
+XLSX legacy and dynamic arrays retain their stored follower values and declared ranges in
+spill storage. They are not ordinary cells that block later recalculation. Synthetic controls
+cover unsupported cached anchors, zero, empty text, false and errors across unrelated edits
+and save/reopen, plus row/column shifts of legacy array ranges. Sparse followers beyond
+a million positions survive export without enumerating the declared area. Legacy-array
+ranges protect partial content edits even when follower caches are sparse or empty;
+formatting and whole-array replacement remain supported. Clear Contents/Clear All also
+reject partial selections before changing the workbook; whole-array clears accept unions
+of areas but exclude filter-hidden rows from coverage. Missing cache entries are not
+reconstructed and no native Excel corpus qualification is claimed. A missing explicitly
+marked array anchor keeps stored followers when its calculation fails or produces no
+placeable replacement array; a successful replacement still supersedes old results. The
+freshness notice covers follower-only caches. Accepted multi-cell ranges keep their
+metadata even after single-cell metadata admission reaches its limit; the existing
+multi-cell count, area and scan-work budgets remain in force.
+`file.open` keeps nonempty formula caches and fills absent results unless the workbook
+requests `fullCalcOnLoad`. An explicit `recalculate: true` or `recalculate: false` wins over
+that flag. The info bar reports the chosen policy without a modal message box. Normal argument
+edits invalidate their dependents, while unrelated edits no longer invalidate a saved
+unresolved function solely because its name is unknown. Calculate Now and structural
+edits still recalculate all formulas, which can replace unsupported results with errors.
+The synthetic lifecycle checks are in `crates/engine/tests/it/cached_open.rs`; they do not
+prove cache freshness or arbitrary Excel-authored file fidelity. This open policy uses
+#2308's additive calculation API rather than duplicating it.
+The deterministic spill-precedence integration keeps imported followers fixed during missing-only
+opening, including when an earlier missing anchor has a recorded range of its own. Explicit full
+and incremental recalculation retain upstream's standing/reading-order behavior. A synthetic
+calc control covers both cache variants and the later explicit recalculation transition.
+
+Native JSON rejects invalid cached spill ranges rather than discarding metadata that protects
+array contents. The error identifies the offending anchor cell.
+
+#### Shared-reader integration for saved XLS arrays
 
 The shared reader retains stored non-empty array follower results separately from ordinary
 cells. The adapter maps them to sparse spill values, records the anchor's declared range,
@@ -294,3 +292,19 @@ based on the same upstream revision; package versions and the other library code
 
 Malformed XLS array declarations whose range starts away from the formula anchor are rejected
 before creating spill metadata, so a saved native workbook cannot become unreadable on reopen.
+
+### Contribution revision history
+
+| Date | Change | Summary |
+|---|---|---|
+| 2026-11-15 | minor | Keep sparse saved XLS array results through the craft-xls adapter and retain unknown-function dependency behavior after the iterative precedent collector refactor; all earlier cache-preserving regressions remain. |
+| 2026-11-11 | trivial | Invalid native JSON spill-cache diagnostics name the offending anchor; strict rejection protects array contents. A calculation regression checks cached unknown calls with explicit argument dependencies after graph rebuild. |
+| 2026-11-10 | minor | XLS import moves stored legacy-array followers into sparse spill caches and keeps declared ranges before cached open; genuinely absent followers stay sparse, while unsupported formulas keep their values as ordinary cells. |
+| 2026-11-10 | minor | Native JSON retains sparse spill values and ranges, including unmarked and unsupported arrays, without evaluating cached formulas; older JSON that omitted spill data requires explicit recalculation to reconstruct supported arrays. |
+| 2026-11-10 | minor | Honour fullCalcOnLoad unless an explicit recalculation parameter overrides it; report the chosen policy in the info bar without a modal; keep the writer's missing-result flag and explicitly unflag cache-preserving fixtures. |
+| 2026-10-30 | minor | Reject partial Clear Contents/Clear All selections inside legacy arrays using declared ranges, including missing cached followers; allow whole-array selection unions and respect filter-hidden rows. |
+| 2026-10-30 | minor | Preserve XLSX legacy/dynamic array follower caches in spill storage and retain bounded ranges, so cached open and save/reopen do not lose stored array results; explicit full recalculation remains supported. |
+| 2026-10-30 | minor | Keep stored array followers when a missing anchor cannot produce a replacement; retain accepted multi-cell range metadata after single-cell metadata saturation; include follower-only caches in the freshness notice. |
+| 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
+| 2026-10-28 | trivial | Keep the stale formula-cache warning visible ahead of overflowing import warnings; a synthetic XLSX regression verifies the visible notice, retained warnings and overflow count |
+| 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |
