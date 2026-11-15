@@ -64,6 +64,8 @@ pub(super) struct PassHost<'a> {
     pub(super) iterate: bool,
     /// Missing-only import may retain saved array followers until an array replaces them.
     pub(super) preserve_cached_arrays: bool,
+    /// Stored ownership includes absent cached followers; scalar-only passes do not build it.
+    pub(super) declared_spill_index: std::cell::OnceCell<SpillIndex>,
     /// Values from the previous iteration; cells not in it read their stored value.
     prev: HashMap<Key, Value>,
     /// Formulas being evaluated, innermost last (kept only when iterating).
@@ -119,6 +121,7 @@ impl<'a> PassHost<'a> {
             cycle_seen: HashSet::default(),
             iterate: false,
             preserve_cached_arrays: false,
+            declared_spill_index: std::cell::OnceCell::new(),
             prev: HashMap::default(),
             stack: Vec::new(),
             members: HashSet::default(),
@@ -174,28 +177,24 @@ fn spill_blocked(host: &PassHost<'_>, (sheet, anchor): Key, a: &Array) -> bool {
     let end =
         CellRef::new(anchor.row.saturating_add((a.rows as u32).saturating_sub(1)), anchor.col.saturating_add((a.cols as u32).saturating_sub(1)));
     let range = RangeRef::new(anchor, end);
-    let own = sh.spill_ranges.get(&anchor);
+    let mut owners = Vec::new();
+    host.declared_spill_index.get_or_init(|| super::stored_spill_index(host.wb)).meeting(sheet, range, &mut owners);
     let default = super::Standing::default();
     let standing = host.standing.unwrap_or(&default);
-    let spilled_over = |c: CellRef| {
-        !own.is_some_and(|o| o.contains(c))
-            && sh.spill_ranges.iter().any(|(o, r)| {
-                // A formula or Python cell recalculated in this pass lays its array out again.
-                *o != anchor
-                    && r.contains(c)
-                    && !host.exprs.contains_key(&(sheet, *o))
-                    && !host.python.contains_key(&(sheet, *o))
-                    // Missing-only opening uses saved results as fixed inputs, even when the
-                    // competing missing anchor would outrank them during normal recalculation.
-                    && (host.preserve_cached_arrays || standing.outranks((sheet, *o), (sheet, anchor)))
-            })
-    };
+    let declared_blocked = owners.into_iter().any(|owner| {
+        owner != anchor
+            && sh.spill_ranges.get(&owner).is_some_and(|area| super::spill_area_intersects(*area, range, anchor))
+            // A pending formula or Python cell may replace its old declaration in this pass.
+            && !host.exprs.contains_key(&(sheet, owner))
+            && !host.python.contains_key(&(sheet, owner))
+            && (host.preserve_cached_arrays || standing.outranks((sheet, owner), (sheet, anchor)))
+    });
     end.row >= gridcraft_core::MAX_ROWS
         || end.col >= gridcraft_core::MAX_COLS
         || sh.merges.iter().any(|m| m.intersects(&range))
         || sh.tables.iter().any(|t| t.range.contains(anchor))
         || sh.cells.iter_range(range).any(|(c, cell)| c != anchor && (!cell.value.is_empty() || cell.formula.is_some()))
-        || sh.spill.range(range.start..=range.end).any(|(c, _)| range.contains(*c) && spilled_over(*c))
+        || declared_blocked
 }
 
 /// Whether `arr`, anchored at `anchor`, would spill exactly what the sheet already holds over

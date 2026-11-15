@@ -3367,3 +3367,90 @@ fn recalc_missing_does_not_outrank_saved_array_followers() {
         assert_eq!((t.num("A2"), t.num("B2"), t.num("C2"), t.num("E1")), (1.0, 2.0, 3.0, 3.0));
     }
 }
+/// A write-back collision is indexed soon enough to retry after a pending saved area shrinks.
+#[test]
+fn recalc_missing_retries_after_a_saved_array_area_shrinks() {
+    let mut t = T::new();
+    let sh = t.wb.sheet_mut(0).unwrap();
+    for (at, text, end) in [("B1", "=SEQUENCE(3)", "B1"), ("A2", "=SEQUENCE(1)", "C2")] {
+        let mut formula = Formula::new(text);
+        formula.dynamic = true;
+        sh.set_cell(c(at), Cell::formula(formula));
+        sh.spill_ranges.insert(c(at), gridcraft_core::RangeRef::new(c(at), c(end)));
+    }
+    sh.spill.insert(c("B2"), Value::Number(101.0));
+    sh.spill.insert(c("C2"), Value::Number(102.0));
+    t.calc.recalc_missing(&mut t.wb);
+    assert_eq!((t.num("B1"), t.num("B2"), t.num("B3"), t.num("A2")), (1.0, 2.0, 3.0, 1.0));
+    assert_eq!(t.get("C2"), Value::Empty);
+    assert_eq!(t.wb.sheet(0).unwrap().spill_ranges.get(&c("B1")), Some(&gridcraft_core::RangeRef::new(c("B1"), c("B3"))));
+}
+
+/// Sparse declared areas reserve even absent followers during cached open and later edits.
+#[test]
+fn sparse_cached_array_ranges_reserve_their_missing_followers() {
+    for dynamic in [false, true] {
+        for tail_saved in [false, true] {
+            for own_cache in [false, true] {
+                let mut t = T::new();
+                let sh = t.wb.sheet_mut(0).unwrap();
+                let held = gridcraft_core::RangeRef::new(c("A2"), c("C2"));
+                let mut formula = Formula::new("=SYNTHETIC_UNSUPPORTED_ARRAY()");
+                formula.dynamic = dynamic;
+                formula.array = (!dynamic).then_some(held);
+                let mut cell = Cell::formula(formula);
+                cell.value = Value::Number(100.0);
+                sh.set_cell(c("A2"), cell);
+                sh.spill_ranges.insert(c("A2"), held);
+                if tail_saved {
+                    sh.spill.insert(c("C2"), Value::Number(102.0));
+                }
+                let mut formula = Formula::new("=SEQUENCE(2)");
+                formula.dynamic = true;
+                sh.set_cell(c("B1"), Cell::formula(formula));
+                if own_cache {
+                    sh.spill_ranges.insert(c("B1"), gridcraft_core::RangeRef::new(c("B1"), c("B1")));
+                }
+                t.calc.recalc_missing(&mut t.wb);
+                assert_eq!(t.get("B1"), Value::Error(CellError::Spill));
+                assert_eq!(t.get("B2"), Value::Empty, "a missing follower is still reserved");
+                assert_eq!(t.num("A2"), 100.0);
+                assert_eq!(t.wb.sheet(0).unwrap().spill_ranges.get(&c("A2")), Some(&held));
+                t.set("B1", "=SEQUENCE(2)");
+                assert_eq!(t.get("B1"), Value::Error(CellError::Spill), "incremental placement also respects the declaration");
+                assert_eq!(t.get("B2"), Value::Empty);
+                t.set("A2", "7");
+                assert_eq!((t.num("B1"), t.num("B2")), (1.0, 2.0));
+                assert_eq!(t.get("C2"), Value::Empty, "clearing the old area cannot erase the winning array");
+            }
+        }
+    }
+}
+
+/// Reading-order takeover of a sparse area updates its ownership before the winner is written.
+#[test]
+fn incremental_spill_takeover_removes_sparse_old_ownership() {
+    let mut t = T::new();
+    let sh = t.wb.sheet_mut(0).unwrap();
+    sh.set_value(c("J1"), Value::Number(1.0));
+    for (at, text, value, end) in [("B1", "=SEQUENCE(J1)", 1.0, "B1"), ("A2", "=SEQUENCE(1,3)", 100.0, "C2")] {
+        let mut formula = Formula::new(text);
+        formula.dynamic = true;
+        let mut cell = Cell::formula(formula);
+        cell.value = Value::Number(value);
+        sh.set_cell(c(at), cell);
+        sh.spill_ranges.insert(c(at), gridcraft_core::RangeRef::new(c(at), c(end)));
+    }
+    sh.spill.insert(c("C2"), Value::Number(102.0));
+    t.calc.rebuild(&t.wb);
+    t.set("J1", "2");
+    assert_eq!((t.num("B1"), t.num("B2")), (1.0, 2.0));
+    assert_eq!(t.get("A2"), Value::Error(CellError::Spill));
+    assert_eq!(t.get("C2"), Value::Empty);
+    assert!(!t.wb.sheet(0).unwrap().spill_ranges.contains_key(&c("A2")));
+    let mut fresh = t.wb.clone();
+    Calc::new().recalc_all(&mut fresh);
+    for at in ["B1", "B2", "A2", "C2"] {
+        assert_eq!(t.get(at), fresh.sheet(0).unwrap().value(c(at)), "{at}: incremental versus full");
+    }
+}
