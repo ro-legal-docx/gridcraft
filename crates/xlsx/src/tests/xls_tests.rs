@@ -918,3 +918,20 @@ fn xls_duplicate_sheet_names_are_refused() {
     assert!(err.contains("already taken"), "{err}");
     assert!(crate::xls::read_xls_budgeted(&file("One", "Two"), Default::default(), Default::default()).is_ok());
 }
+
+/// An imported array cannot persist spill metadata whose range starts at another cell.
+#[test]
+fn xls_array_ranges_must_start_at_their_anchor() {
+    let array = cat(&[&[0x65], &u16s(&[4, 5, 0xC000, 0xC000]), &ptg_int(2), &[0x05]]);
+    let definition = rec(0x0221, &cat(&[&u16s(&[4, 5]), &[2, 2], &[0; 6], &(array.len() as u16).to_le_bytes(), &array]));
+    for (first_row, first_col) in [(5u16, 2u8), (4u16, 3u8)] {
+        let mut stream = sample(false);
+        let p = stream.windows(definition.len()).position(|w| w == definition).unwrap();
+        stream[p + 4..p + 6].copy_from_slice(&first_row.to_le_bytes());
+        stream[p + 6..p + 8].copy_from_slice(&(first_row + 1).to_le_bytes());
+        stream[p + 8] = first_col;
+        stream[p + 9] = first_col;
+        let error = read_xls(&compound("Workbook", &stream)).unwrap_err().to_string();
+        assert!(error.contains("range does not start at its anchor"), "{error}");
+    }
+}

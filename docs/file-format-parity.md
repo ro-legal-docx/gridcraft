@@ -281,3 +281,6 @@ cells. The adapter maps them to sparse spill values, records the anchor's declar
 and restores ordinary values when an anchor cannot be parsed. Missing results stay absent.
 The dependency is temporarily pinned to [the supporting contribution](https://github.com/ro-legal-docx/craft-libs/commit/749dda3370eab6cec7409d5c15bceee0e37ec540)
 based on the same upstream revision; package versions and the other library code are unchanged.
+
+Malformed XLS array declarations whose range starts away from the formula anchor are rejected
+before creating spill metadata, so a saved native workbook cannot become unreadable on reopen.
