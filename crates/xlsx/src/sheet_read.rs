@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use gridcraft_core::date::{serial_from_ymd, time_fraction};
 use gridcraft_core::{CellError, CellRef, DateSystem, MAX_COLS, MAX_ROWS, RangeRef, Value};
+use gridcraft_formula::Expr;
 use gridcraft_model::{
     AutoFilter, Cell, CfOperator, CfRule, CfValueKind, Comment, CondFormat, EditRange, ErrorStyle, FilterCriterion, Formula, Hyperlink, LineInfo,
     NoteBox, NoteCorner, Orientation, PageOrder, PasswordHash, Sheet, SheetProtection, Sparkline, SparklineKind, Table, TableColumn, TotalsFn,
@@ -12,7 +13,7 @@ use gridcraft_model::{
 };
 
 use crate::IoError;
-use crate::fmla::unwrap_google_sheets;
+use crate::fmla::{from_file, unwrap_google_sheets};
 use crate::package::Rel;
 use crate::read::Ctx;
 use crate::styles::read_color;
