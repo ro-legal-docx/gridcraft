@@ -797,9 +797,7 @@ impl Calc {
                 };
                 if !blocked {
                     for (o, r) in outranked {
-                        for c in r.iter() {
-                            sheet.spill.remove(&c);
-                        }
+                        sheet.clear_spill(r);
                         sheet.spill_ranges.remove(&o);
                         declared.remove((key.0, o));
                         if let Some(cell) = sheet.cells.get_mut(o) {

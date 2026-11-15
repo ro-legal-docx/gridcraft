@@ -293,10 +293,12 @@ based on the same upstream revision; package versions and the other library code
 Malformed XLS array declarations whose range starts away from the formula anchor are rejected
 before creating spill metadata, so a saved native workbook cannot become unreadable on reopen.
 
-Stored array declarations reserve absent follower cells as well as saved ones. A missing array
-blocked during write-back is retried when another pending area shrinks; later incremental
-placement retains the same ownership checks. Synthetic controls cover sparse dynamic/legacy
-caches, explicit edits, and reading-order takeover without erasing another array.
+Stored array declarations reserve absent follower cells as well as saved ones during cached
+opening. A missing array blocked during write-back is retried when another pending area shrinks.
+Explicit edits retain upstream standing/reading-order takeover, including when both anchors held
+an area. Cleanup of a displaced sparse area is bounded by stored entries rather than every
+coordinate in its declaration. Synthetic controls cover dynamic/legacy caches, explicit edits,
+and takeover of a 16-million-cell sparse declaration without erasing the winning array.
 
 ### Contribution revision history
 
