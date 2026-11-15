@@ -1,8 +1,6 @@
 # Gaps
 
-> **Automation confinement update:** 2026-10-30 · Headless MCP accepts operator-selected read/write roots, applied before `--in` and at file I/O. Native reads and atomic saves bind their operations to open authorized directory handles; exclusive random temporary names prevent stale `.sctmp` files from blocking saves. Desktop `--connect` confinement and process-wide OS sandboxing remain outside this change. Readiness estimates unchanged. See [MCP file access](mcp.md#restrict-file-access-to-a-folder).
->
-> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-11-15 · **Change:** minor (MCP file confinement retained with upstream Arabic PDF progress; earlier: §5: Arabic PDF output preserves cell direction, joined glyphs and RTL sheet geometry; earlier: §17: equations; earlier: §13: Solver Sensitivity report; earlier: §4: chart resizing is no longer a gap; earlier: §13: Analysis ToolPak has all 19 tools; earlier: §4: chart data tables implemented with XLSX round-trip and print/PDF; earlier: §13: Solver Options; earlier: §13: Solver Load/Save Model and Reset All) · **Target:** Microsoft Excel (Microsoft 365)
+> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-11-13 · **Change:** minor (§5: Arabic PDF output preserves cell direction, joined glyphs and RTL sheet geometry; earlier: §17: equations; earlier: §13: Solver Sensitivity report; earlier: §4: chart resizing is no longer a gap; earlier: §13: Analysis ToolPak has all 19 tools; earlier: §4: chart data tables implemented with XLSX round-trip and print/PDF; earlier: §13: Solver Options; earlier: §13: Solver Load/Save Model and Reset All) · **Target:** Microsoft Excel (Microsoft 365)
 
 Every known shortfall against Excel, one entry each, ranked by user impact (what blocks someone
 using GridCraft for real work first). This is the work list: pick from the top, check the open
@@ -195,8 +193,6 @@ No alpha blockers: every core workflow passes the [alpha gate](roadmap.md#alpha-
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-29 | minor | Align root flags with DeckCraft, cover nested write roots and macOS case aliases; desktop scope and readiness estimates unchanged |
-| 2026-10-27 | minor | Headless MCP filesystem roots, initial `--in` confinement and regression tests; desktop control scope and readiness estimates unchanged |
 | 2026-11-02 | minor | §17: equations (Insert › Equation, LaTeX source, gallery, editor) |
 | 2026-11-02 | minor | §13: Solver Sensitivity report: shadow prices, reduced costs and allowable ranges for Simplex LP; Lagrange multipliers and reduced gradients for GRG Nonlinear |
 | 2026-11-02 | minor | §4: charts, like every floating object, move and resize from eight handles (#190), so resizing is no longer listed as missing; the evidence is one paragraph again, without the stale "PRs #158, #161 open" |
@@ -241,3 +237,21 @@ No alpha blockers: every core workflow passes the [alpha gate](roadmap.md#alpha-
 | 2026-10-10 | minor | Updated for the 10-10 merges (#17, #31, #38, #62, #82, #104, #116) and the new chart resize bug (#190) |
 | 2026-10-10 | minor | Noted that no gap blocks the alpha gate |
 | 2026-10-10 | major | Created: 24 ranked gaps with evidence, from the full re-measure and the 60 open issues |
+
+
+## Contribution #2739 — scoped notes
+
+> **Last updated:** 2026-11-15 · These notes describe this contribution. The mainline assessment and progress tables above are retained verbatim from `1d0b311b4a94`. The contribution does not revise the mainline readiness estimates.
+
+The behavior described in these scoped notes applies to this branch and supersedes corresponding older baseline statements above. Dated rows below record the contribution history, rather than adding a new claim of general parity.
+
+Topic change: MCP file confinement retained with upstream Arabic PDF progress.
+
+> **Automation confinement update:** 2026-10-30 · Headless MCP accepts operator-selected read/write roots, applied before `--in` and at file I/O. Native reads and atomic saves bind their operations to open authorized directory handles; exclusive random temporary names prevent stale `.sctmp` files from blocking saves. Desktop `--connect` confinement and process-wide OS sandboxing remain outside this change. Readiness estimates unchanged. See [MCP file access](mcp.md#restrict-file-access-to-a-folder).
+
+### Contribution revision history
+
+| Date | Change | Summary |
+|---|---|---|
+| 2026-10-29 | minor | Align root flags with DeckCraft, cover nested write roots and macOS case aliases; desktop scope and readiness estimates unchanged |
+| 2026-10-27 | minor | Headless MCP filesystem roots, initial `--in` confinement and regression tests; desktop control scope and readiness estimates unchanged |
