@@ -844,7 +844,7 @@ fn html_merge_lookups_and_spans_stay_bounded() {
     let sh = wb.sheet_mut(0).unwrap();
     sh.merges = vec![RangeRef::new(CellRef::new(0, 0), CellRef::new(2, 1)); 100];
     assert!(to_html(&wb, 0).is_err());
-    assert!(range_html(&wb, 0, RangeRef::parse("A1:B3").unwrap(), "").is_none());
+    assert!(range_html(&wb, 0, RangeRef::parse("A1:B3").unwrap(), "", &gridcraft_numfmt::Locale::EN_US).is_none());
 }
 
 /// Thousands of pictures over thousands of custom rows: each is placed through a row index.

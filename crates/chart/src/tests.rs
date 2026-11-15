@@ -1768,7 +1768,7 @@ fn volatile_defined_names_are_followed() {
     assert!(!has_volatile_series(&wb, 0, &with("=Rates")));
     assert!(!has_volatile_series(&wb, 0, &with("=\"FreshClock\"")));
     // Dice belongs to sheet 0: seen from another sheet it isn't defined.
-    wb.sheets.push(Arc::new(gridcraft_model::Sheet::new("Other")));
+    wb.sheets.push(std::sync::Arc::new(gridcraft_model::Sheet::new("Other")));
     assert!(!has_volatile_series(&wb, 1, &with("=Dice")));
     assert!(has_volatile_series(&wb, 1, &with("=FreshClock")));
 }
