@@ -385,7 +385,11 @@ pub(super) fn range_fill(s: &mut Session, p: &Json) -> Result<Json> {
             if r.count() > 2_000_000 {
                 return Err(bad("range.fill", "range too large"));
             }
+            let skip = cx.wb.sheet(sheet).map(|sh| super::filtered_rows(sh, *r)).unwrap_or_default();
             for at in r.iter() {
+                if skip.contains(&at.row) {
+                    continue;
+                }
                 let style = cx.wb.sheet(sheet).map(|sh| sh.style_id(at)).unwrap_or_default();
                 let has_imported_namespaces =
                     cx.wb.sheet(sheet).and_then(|sh| sh.cell(at)).and_then(|c| c.formula.as_ref()).is_some_and(|f| !f.file_functions.is_empty());
