@@ -230,9 +230,19 @@ pub(crate) fn open_read(path: &str) -> Result<std::fs::File, String> {
     let result = match current() {
         Some(roots) => {
             let (root, relative) = roots.checked(path, Access::Read)?;
+            // Check through the retained authority: a FIFO must not block the GUI thread.
+            // As in ordinary I/O, a type swap between metadata and open still needs O_NONBLOCK.
+            if !root.dir.metadata(&relative).map_err(|e| format!("{path}: {e}"))?.is_file() {
+                return Err(format!("{path}: only regular files can be opened"));
+            }
             root.dir.open(relative).map(cap_std::fs::File::into_std)
         }
-        None => std::fs::File::open(path),
+        None => {
+            if !std::fs::metadata(path).map_err(|e| format!("{path}: {e}"))?.is_file() {
+                return Err(format!("{path}: only regular files can be opened"));
+            }
+            std::fs::File::open(path)
+        }
     };
     result.map_err(|e| format!("{path}: {e}"))
 }
@@ -642,4 +652,19 @@ mod tests {
         let bytes = confine(Some(&roots), || crate::io::read_file(alias.to_str().unwrap())).unwrap();
         assert_eq!(bytes, b"a,b");
     }
+}
+
+/// Confined reads reject a FIFO through their retained root before an open can block.
+#[cfg(all(test, unix))]
+#[test]
+fn confined_fifo_is_refused_before_opening() {
+    let dir = std::env::temp_dir().join(format!("gridcraft-confined-fifo-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let fifo = dir.join("pipe.xlsx");
+    if !fifo.exists() && !std::process::Command::new("mkfifo").arg(&fifo).status().is_ok_and(|s| s.success()) {
+        return;
+    }
+    let roots = AutomationRoots::new(Some(&dir), None).unwrap().unwrap();
+    let error = confine(Some(&roots), || crate::io::read_file(fifo.to_str().unwrap())).unwrap_err().to_string();
+    assert!(error.contains("only regular files"), "{error}");
 }
