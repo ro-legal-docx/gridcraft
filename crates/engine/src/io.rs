@@ -1046,7 +1046,18 @@ pub fn write_file(path: &str, bytes: &[u8]) -> Result<()> {
 #[cfg(not(target_arch = "wasm32"))]
 fn atomic_write(dir: &cap_std::fs::Dir, name: &std::ffi::OsStr, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
-    let prior_meta = dir.metadata(name).ok();
+    let prior_meta = match dir.metadata(name) {
+        Ok(meta) => Some(meta),
+        // Only an absent leaf is new. A dangling or unresolvable symlink is not permission
+        // to replace an existing destination with the ordinary creation mode.
+        Err(e)
+            if e.kind() == std::io::ErrorKind::NotFound
+                && dir.symlink_metadata(name).is_err_and(|leaf| leaf.kind() == std::io::ErrorKind::NotFound) =>
+        {
+            None
+        }
+        Err(e) => return Err(e),
+    };
     #[cfg(not(unix))]
     let prior = prior_meta.as_ref().map(|m| m.permissions());
     let mut opts = cap_std::fs::OpenOptions::new();
@@ -1087,7 +1098,9 @@ fn atomic_write(dir: &cap_std::fs::Dir, name: &std::ffi::OsStr, bytes: &[u8]) ->
         let group_kept = file.metadata().map(|now| now.gid() == m.gid()).inspect_err(|_| {
             let _ = dir.remove_file(&tmp);
         })?;
-        let _ = file.set_permissions(std::fs::Permissions::from_mode(restored_mode(m.mode(), group_kept)));
+        if let Some(mode) = restored_mode(m.mode(), group_kept) {
+            let _ = file.set_permissions(std::fs::Permissions::from_mode(mode));
+        }
     }
 
     #[cfg(not(unix))]
@@ -1106,11 +1119,11 @@ fn atomic_write(dir: &cap_std::fs::Dir, name: &std::ffi::OsStr, bytes: &[u8]) ->
     result
 }
 
-/// The mode a saved file gets from the file it replaces (`old`): all of it when its group was
-/// restored; without the group, the owner and other bits only.
+/// Restore the saved mode only when the old group is kept. Otherwise leave the temporary
+/// file's restrictive permissions unchanged: old group members could now match the other class.
 #[cfg(unix)]
-fn restored_mode(old: u32, group_kept: bool) -> u32 {
-    if group_kept { old & 0o7777 } else { old & 0o707 }
+fn restored_mode(old: u32, group_kept: bool) -> Option<u32> {
+    group_kept.then_some(old & 0o7777)
 }
 
 #[cfg(target_arch = "wasm32")]

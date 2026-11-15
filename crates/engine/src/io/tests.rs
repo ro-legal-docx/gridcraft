@@ -150,15 +150,17 @@ fn save_keeps_the_destination_access_restrictions() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Without the old group, a saved file keeps the old owner and other bits and nothing for a group.
+/// Without the old group, a saved file keeps the restrictive temporary mode.
 #[cfg(not(target_arch = "wasm32"))]
 #[cfg(unix)]
 #[test]
-fn restored_mode_drops_the_group_and_special_bits_when_the_group_is_lost() {
-    assert_eq!(super::restored_mode(0o100_664, true), 0o664);
-    assert_eq!(super::restored_mode(0o100_664, false), 0o604);
-    assert_eq!(super::restored_mode(0o102_444, false), 0o404, "an original read-only file stays read-only, setgid is dropped");
-    assert_eq!(super::restored_mode(0o104_755, false), 0o705, "setuid is dropped");
+fn restored_mode_keeps_restrictive_permissions_when_the_group_is_lost() {
+    assert_eq!(super::restored_mode(0o100_664, true), Some(0o664));
+    assert_eq!(super::restored_mode(0o100_664, false), None);
+    assert_eq!(super::restored_mode(0o102_444, false), None, "leave the restrictive temporary mode; do not copy setgid");
+    assert_eq!(super::restored_mode(0o104_755, false), None, "do not copy setuid or other-class access");
+    assert_eq!(super::restored_mode(0o100_604, false), None, "members of a lost group must not gain the old other-class read access");
+    assert_eq!(super::restored_mode(0o100_604, true), Some(0o604));
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -963,4 +965,32 @@ fn the_merge_index_holds_a_bounded_number_of_cells() {
     assert_eq!(merge_index(&sh, rect).map(|m| m.len()), Some(1_000_000));
     sh.merges = vec![RangeRef::new(CellRef::new(0, 0), CellRef::new(1_000_000, 0))];
     assert!(merge_index(&sh, rect).is_none());
+}
+
+/// A target inside the write root can still be outside a narrower retained parent handle.
+/// Metadata refusal must not replace its symlink with a more widely readable saved copy.
+#[cfg(all(not(target_arch = "wasm32"), unix))]
+#[test]
+fn failed_destination_metadata_does_not_widen_a_saved_copy() {
+    use std::os::unix::fs::PermissionsExt;
+    let fixture = save_fixture("metadata-refused");
+    let selected = fixture.path().join("selected");
+    std::fs::create_dir_all(selected.join("sub")).unwrap();
+    let private = selected.join("private.xlsx");
+    std::fs::write(&private, b"private sentinel").unwrap();
+    std::fs::set_permissions(&private, std::fs::Permissions::from_mode(0o600)).unwrap();
+    let alias = selected.join("sub/book.xlsx");
+    std::os::unix::fs::symlink("../private.xlsx", &alias).unwrap();
+    let roots = crate::file_access::AutomationRoots::new(None, Some(&selected)).unwrap();
+    let result = crate::file_access::confine(roots.as_ref(), || write_file(alias.to_str().unwrap(), b"new saved copy"));
+    assert!(result.is_err(), "a refused metadata lookup cannot be treated as a new file");
+    assert!(std::fs::symlink_metadata(&alias).unwrap().file_type().is_symlink());
+    assert_eq!(std::fs::read(&private).unwrap(), b"private sentinel");
+    assert_eq!(std::fs::metadata(&private).unwrap().permissions().mode() & 0o777, 0o600);
+    // Also refuse a leaf whose target disappeared after an earlier path check.
+    let dangling = selected.join("sub/lost.xlsx");
+    std::os::unix::fs::symlink("missing.xlsx", &dangling).unwrap();
+    let dir = cap_std::fs::Dir::open_ambient_dir(selected.join("sub"), cap_std::ambient_authority()).unwrap();
+    assert!(atomic_write(&dir, std::ffi::OsStr::new("lost.xlsx"), b"new saved copy").is_err());
+    assert!(std::fs::symlink_metadata(dangling).unwrap().file_type().is_symlink());
 }

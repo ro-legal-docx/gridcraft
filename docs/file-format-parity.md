@@ -243,6 +243,11 @@ refresh. Counted under features (Get & Transform, ~10% ready), not here.
 
 Capability-relative reads retain the upstream regular-file precheck, including for confined
 FIFO paths. Atomic saves keep unpredictable exclusive temporary names and restore an existing
-file's group before its permission bits; a lost group drops group and special access bits.
+file's group before its permission bits; a lost group retains the restrictive temporary mode.
 The ordinary new-file creation mode still passes through the process umask. Both command-line
 sandbox and folder-confinement regressions remain, with an additional confined-FIFO control.
+
+Only an absent destination leaf permits ordinary new-file permissions. A failed metadata lookup
+for an existing or dangling symlink refuses the save; losing the old group never copies its
+other-class rights to a replacement with a different group. Synthetic controls retain both links
+and the private target bytes and permissions when these saves are refused.
