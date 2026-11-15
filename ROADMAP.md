@@ -149,6 +149,7 @@ Ranked; estimates in Opus 5.5 agent-hours. Detail and the full beta-gate list in
 | 2026-10-31 | Recently Used lists the functions most recently entered in a formula from any source (ribbon, control channel, MCP, scripts), kept with the preferences and returned by `formulas.recentlyUsed`; the Insert Function dialog takes Excel's title and a working category list (Most Recently Used, All, each category) |
 | 2026-10-31 | Formulas › Function Library as a big Insert Function button, the AutoSum split button and three columns of labelled small buttons, each category book in its own colour; category menus end with Insert Function… on that category; More Functions cascades into the remaining categories; Home › Editing shares the AutoSum menu; the MR key tip opens Recently Used |
 | 2026-10-31 | System and embedded CJK fallback text shares the Latin baseline in cells, editors and window titles (#1265, #2621). Symbol and emoji alignment, manual row heights and clipping are unchanged |
+| 2026-10-26 | Arabic PDF export shapes licensed glyph outlines and preserves searchable logical text; characters the font lacks, or a missing Arabic font, fall back to the standard fonts instead of failing the export |
 | 2026-10-26 | Arabic bidi display/editing preserve logical source text; per-cell reading direction is editable and survives undo, XLSX and conditional-format priority |
 | 2026-10-26 | Arabic text shows in cells and the interface through a system, fontconfig or craft-fonts Arabic face; workbook fonts keep their script fallbacks |
 | 2026-10-25 | AutoSum over a selection does what Excel does: a selected row gets one total to its right (in its last cell if that is empty), not a one-cell total under each cell; a block whose last column is empty gets each row's total there, one whose last row is empty each column's, and with both the corner gets the total of the block; otherwise totals go under each column as before |
@@ -308,6 +309,8 @@ perform a full recalc; readiness estimates and migration qualification are uncha
 | 2026-10-30 | minor | Export sparse array caches by stored entries without the million-cell cutoff; protect missing legacy-array followers using declared ranges, including when no follower cache exists. |
 | 2026-10-28 | trivial | Keep the stale formula-cache warning visible ahead of overflowing import warnings; a synthetic XLSX regression verifies the visible notice, retained warnings and overflow count |
 | 2026-10-28 | minor | Cache-preserving imported formula open and explicit recalculation, building on #2308; synthetic lifecycle coverage, remaining structural-recalc limitation (#2770). |
+| 2026-10-26 | minor | Progress log: Arabic PDF text |
+| 2026-10-26 | minor | Progress log: Arabic bidi display and editing |
 | 2026-10-26 | minor | Progress log: Arabic font fallback |
 | 2026-10-26 | minor | Progress log: Arabic bidi display and editing |
 | 2026-10-25 | minor | Progress log: AutoSum over a selected row, and a selection's empty last row and column |
