@@ -2331,6 +2331,85 @@ fn median_large_values_recalculate_dependents() {
     }
 }
 
+/// #2183: `INDEX(…):INDEX(…):…` used to re-walk each operand of the left-associative range chain,
+/// costing 2^k for k operands (28 took 40 s; 60 would take millennia), on open and on every edit.
+#[test]
+fn range_operator_chain_precedents_are_linear() {
+    let operands: Vec<String> = (1..=60).map(|i| format!("INDEX(A{i},1)")).collect();
+    let src = format!("=SUM({})", operands.join(":"));
+    let e = gridcraft_formula::parse(&src).unwrap();
+    let wb = Workbook::new();
+    // With the old 2^k walk this call would never return; #2183 asks for under 100 ms.
+    #[allow(clippy::disallowed_methods)] // a native test: the clock is there
+    let t0 = std::time::Instant::now();
+    let (areas, dynamic) = crate::eval::precedents(&wb, 0, &e);
+    let took = t0.elapsed();
+    assert!(took < std::time::Duration::from_millis(100), "precedents took {took:?}");
+    assert!(!dynamic);
+    // The chain covers A1:A60, not only the 60 cells named in it.
+    let whole = gridcraft_core::RangeRef::new(c("A1"), c("A60"));
+    assert!(areas.iter().any(|a| a.sheet == 0 && a.range == whole), "{areas:?}");
+    // Each node is visited once: 60 references plus one box per range operator.
+    assert!(areas.len() < 200, "{} areas", areas.len());
+
+    // Through the recalculation engine: setting it finishes and editing a cell in the box recalculates.
+    let mut t = T::new();
+    for i in 1..=60 {
+        t.set(&format!("A{i}"), "1");
+    }
+    t.set("B1", &src);
+    assert_eq!(t.num("B1"), 60.0);
+    t.set("A30", "5");
+    assert_eq!(t.num("B1"), 64.0);
+}
+
+/// A chained range of plain references (`A1:B2:C3`, which the parser can't fold into one
+/// reference) covers their bounding box, as the evaluator expands it: an edit inside the box but
+/// outside each operand still recalculates.
+#[test]
+fn chained_plain_range_precedents_cover_the_bounding_box() {
+    let e = gridcraft_formula::parse("=SUM(A1:B2:C3)").unwrap();
+    let (areas, dynamic) = crate::eval::precedents(&Workbook::new(), 0, &e);
+    assert!(!dynamic);
+    let whole = gridcraft_core::RangeRef::new(c("A1"), c("C3"));
+    assert!(areas.iter().any(|a| a.sheet == 0 && a.range == whole), "{areas:?}");
+
+    let mut t = T::new();
+    t.set("A1", "1");
+    t.set("E1", "=SUM(A1:B2:C3)");
+    assert_eq!(t.num("E1"), 1.0);
+    t.set("C1", "4");
+    assert_eq!(t.num("E1"), 5.0);
+}
+
+/// `precedents` walks with an explicit stack: an expression nested deeper than any formula
+/// within the length limit can build still finds its references, on a small stack.
+#[test]
+fn precedents_of_deep_nesting_do_not_recurse() {
+    let (areas, dynamic) = std::thread::Builder::new()
+        .stack_size(256 * 1024)
+        .spawn(|| {
+            let mut e = gridcraft_formula::parse("=A1").unwrap();
+            for _ in 0..10_000 {
+                e = gridcraft_formula::Expr::Paren(Box::new(e));
+            }
+            let found = crate::eval::precedents(&Workbook::new(), 0, &e);
+            // Dropping the deep tree recurses; leak it so only `precedents` is under test.
+            std::mem::forget(e);
+            found
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    assert!(!dynamic);
+    assert_eq!(areas.len(), 1);
+    // Shallow nesting stays static.
+    let e = gridcraft_formula::parse("=((((A1))))").unwrap();
+    let (areas, dynamic) = crate::eval::precedents(&Workbook::new(), 0, &e);
+    assert!(!dynamic);
+    assert_eq!(areas.len(), 1);
+}
+
 #[test]
 fn cell_filename_names_the_workbook_file() {
     // Excel returns `<folder>/[<file>]<sheet>`, and the classic sheet-name formula splits it on
@@ -2879,4 +2958,20 @@ fn formulas_read_a_dirty_python_cell_after_it_is_laid_out() {
     t.set("B2", "");
     assert_eq!((t.num("B1"), t.num("B2")), (5.0, 6.0));
     assert_eq!((t.num("A1"), t.num("A2"), t.num("A3")), (5.0, 100.0, 111.0));
+}
+
+/// A computed criterion whose formula runs a database function over the same criteria counts as
+/// not met inside itself: before, each record's check ran the function again for every record, at
+/// every level, so the work grew exponentially with the nesting allowed.
+#[test]
+fn computed_criterion_that_reenters_itself_is_not_met() {
+    let mut t = T::new();
+    for (r, (name, age)) in [("name", "age"), ("a", "1"), ("b", "2"), ("c", "3"), ("d", "4"), ("e", "5")].iter().enumerate() {
+        t.set(&format!("F{}", r + 2), name);
+        t.set(&format!("G{}", r + 2), age);
+    }
+    t.set("N46", "Formula");
+    t.set("N47", "=DCOUNT($F$2:$G$7,\"age\",$N$46:$N$47)>0");
+    t.set("B60", "=DCOUNT($F$2:$G$7,\"age\",N46:N47)");
+    assert_eq!(t.num("B60"), 0.0);
 }

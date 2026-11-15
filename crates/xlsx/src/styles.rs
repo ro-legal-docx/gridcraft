@@ -405,12 +405,14 @@ pub fn read_styles(root: &El, checkboxes: &[bool], minor_font: &str) -> StylesIn
             }
         }
     }
-    let dxfs = root.child("dxfs").map(|d| d.kids("dxf").map(|x| read_dxf(x, &palette, &shared_fmts)).collect()).unwrap_or_default();
+    // Intern repeated inline DXF codes within their built-in or custom identity.
+    let mut inline_fmts = HashMap::new();
+    let dxfs = root.child("dxfs").map(|d| d.kids("dxf").map(|x| read_dxf(x, &palette, &shared_fmts, &mut inline_fmts)).collect()).unwrap_or_default();
     StylesIn { xfs, dxfs, palette, named, num_fmts: fmts }
 }
 
 /// One differential format (`dxf`): the style it sets over a cell's own.
-fn read_dxf(x: &El, palette: &[u32], fmts: &HashMap<u32, NumFmt>) -> Style {
+fn read_dxf<'a>(x: &'a El, palette: &[u32], fmts: &HashMap<u32, NumFmt>, inline_fmts: &mut HashMap<(Option<u32>, &'a str), NumFmt>) -> Style {
     let mut s = Style::default();
     if let Some(e) = x.child("font") {
         let f = read_font(e, palette);
@@ -433,7 +435,10 @@ fn read_dxf(x: &El, palette: &[u32], fmts: &HashMap<u32, NumFmt>) -> Style {
     }
     if let Some(n) = x.child("numFmt") {
         if let Some(code) = n.attr("formatCode") {
-            s.num_fmt = declared_num_fmt(n.attr_u32("numFmtId"), code);
+            let id = n.attr_u32("numFmtId");
+            // A built-in and a custom short date can have identical code but different meaning.
+            let key = (id.filter(|&id| id < 164), code);
+            s.num_fmt = inline_fmts.entry(key).or_insert_with(|| declared_num_fmt(id, code)).clone();
         } else if let Some(id) = n.attr_u32("numFmtId") {
             s.num_fmt = num_fmt_code(id, fmts);
         }

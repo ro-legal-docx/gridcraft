@@ -180,3 +180,21 @@ fn declared_short_dates_keep_builtin_and_custom_identity() {
         }
     }
 }
+
+/// Sharing inline DXF codes must keep built-in and literal short-date meanings separate.
+#[test]
+fn shared_inline_dxf_short_dates_keep_their_declared_identity() {
+    for ids in [[14, 164, 14, 165], [164, 14, 165, 14]] {
+        let dxfs: String = ids.iter().map(|id| format!(r#"<dxf><numFmt numFmtId="{id}" formatCode="m/d/yyyy"/></dxf>"#)).collect();
+        let xml = format!("<styleSheet><dxfs>{dxfs}</dxfs></styleSheet>");
+        let root = crate::xml::parse(xml.as_bytes()).unwrap();
+        let read = crate::styles::read_styles(&root, &[], "Calibri");
+        assert_eq!(read.dxfs.len(), ids.len());
+        for (style, id) in read.dxfs.iter().zip(ids) {
+            assert_eq!(style.num_fmt.as_str(), "m/d/yyyy");
+            assert_eq!(style.num_fmt.is_literal_short_date(), id >= 164);
+        }
+        assert!(Arc::ptr_eq(&read.dxfs[0].num_fmt.0, &read.dxfs[2].num_fmt.0));
+        assert!(Arc::ptr_eq(&read.dxfs[1].num_fmt.0, &read.dxfs[3].num_fmt.0));
+    }
+}

@@ -147,3 +147,10 @@ Existing rich-export caps (10,000 cells / 4 MiB) and text fallback remain. Text 
 formatting-rounding and cross-region ambiguity limits. Controls are synthetic, in memory and
 offscreen: actual OS clipboard transport, native Excel, full style/type preservation and arbitrary
 workbooks remain unqualified. No workstation configuration or installed binary is changed.
+
+## Upstream integration — 2026-11-15
+
+The shared SYLK adapter retains explicit custom short-date identity. Repeated inline
+conditional formats still share their code allocation, with built-in and custom date
+identities kept separate. Synthetic regressions cover both DXF orders and SYLK import.
+The shared encryption adapter and both sets of lockfile dependencies are retained.
