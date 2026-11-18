@@ -3482,15 +3482,13 @@ fn sparse_cached_array_ranges_reserve_their_missing_followers() {
                 assert_eq!(t.num("A2"), 100.0);
                 assert_eq!(t.wb.sheet(0).unwrap().spill_ranges.get(&c("A2")), Some(&held));
                 t.set("B1", "=SEQUENCE(2)");
-                if own_cache {
-                    // Both anchors held a declared area: the earlier B1 wins on an explicit edit.
-                    assert_eq!((t.num("B1"), t.num("B2")), (1.0, 2.0), "dynamic={dynamic}, tail_saved={tail_saved}");
-                    assert!(!t.wb.sheet(0).unwrap().spill_ranges.contains_key(&c("A2")));
-                    assert_eq!(t.get("C2"), Value::Empty);
-                } else {
-                    assert_eq!(t.get("B1"), Value::Error(CellError::Spill), "the existing owner outranks a new anchor");
-                    assert_eq!(t.get("B2"), Value::Empty);
-                }
+                // A saved B1-only area does not own B2. An explicit edit still respects A2's
+                // prior ownership of that sparse hole, regardless of B1's own cached declaration.
+                assert_eq!(t.get("B1"), Value::Error(CellError::Spill), "dynamic={dynamic}, tail_saved={tail_saved}, own_cache={own_cache}");
+                assert_eq!(t.get("B2"), Value::Empty);
+                assert_eq!(t.num("A2"), 100.0);
+                assert_eq!(t.get("C2"), if tail_saved { Value::Number(102.0) } else { Value::Empty });
+                assert_eq!(t.wb.sheet(0).unwrap().spill_ranges.get(&c("A2")), Some(&held));
                 t.set("A2", "7");
                 assert_eq!((t.num("B1"), t.num("B2")), (1.0, 2.0));
                 assert_eq!(t.get("C2"), Value::Empty, "clearing the old area cannot erase the winning array");
