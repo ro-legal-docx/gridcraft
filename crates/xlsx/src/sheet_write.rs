@@ -799,6 +799,9 @@ fn write_cell(s: &mut String, input: CellWriteInput<'_>, sid: &dyn Fn(gridcraft_
         Value::Array(a) => a.get(0, 0).cloned().unwrap_or(Value::Empty),
         v => v,
     };
+    // A saved #SPILL! formula is cached as #VALUE!, so request calculation to recover its
+    // actual state. Cached-open must not trust that substitute as the original formula result.
+    out.needs_calc |= formula.is_some() && matches!(&value, Value::Error(CellError::Spill));
     let value = match value {
         Value::Error(CellError::Circ) => Value::Number(0.0),
         // #SPILL! and #CALC! are not error codes of the file format (Excel refuses a file that

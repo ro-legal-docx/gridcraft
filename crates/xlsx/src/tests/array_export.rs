@@ -725,3 +725,29 @@ fn accepted_array_keeps_metadata_after_single_cell_metadata_limit() {
     assert_eq!(sh.value(at("A65538")), Value::Number(42.0));
     assert_eq!(sh.spill_ranges.get(&area.start), Some(&area));
 }
+
+/// A formula's substituted #SPILL! cache requires calculation; faithful saved errors and
+/// constants do not. The engine's contested-array reopen test checks the resulting layout.
+#[test]
+fn lossy_spill_error_cache_requests_recalculation() {
+    use gridcraft_core::CellError;
+
+    for (is_formula, error, needs_calc) in
+        [(true, CellError::Spill, true), (true, CellError::Value, false), (true, CellError::Name, false), (false, CellError::Spill, false)]
+    {
+        let mut wb = Workbook::new();
+        let mut anchor = Cell::formula(Formula::new("SEQUENCE(2)"));
+        Arc::make_mut(anchor.formula.as_mut().unwrap()).dynamic = true;
+        anchor.value = Value::Error(error);
+        if !is_formula {
+            anchor.formula = None;
+        }
+        wb.sheet_mut(0).unwrap().cells.set(at("A1"), anchor);
+        let saved = write_xlsx(&wb).unwrap();
+        let mut pkg = Package::open(&saved).unwrap();
+        let workbook = pkg.read_xml("xl/workbook.xml").unwrap().unwrap();
+        assert_eq!(workbook.child("calcPr").unwrap().attr("fullCalcOnLoad"), needs_calc.then_some("1"), "formula={is_formula}, error={error:?}");
+        let sheet = pkg.read_xml("xl/worksheets/sheet1.xml").unwrap().unwrap();
+        assert_eq!(cell(&sheet, "A1").child("v").unwrap().text, if error == CellError::Spill { "#VALUE!" } else { error.as_str() });
+    }
+}
