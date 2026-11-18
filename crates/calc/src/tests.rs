@@ -3499,14 +3499,15 @@ fn sparse_cached_array_ranges_reserve_their_missing_followers() {
     }
 }
 
-/// Reading-order takeover keeps the winner intact for both small and huge sparse declarations.
+/// When both recorded declarations claim the shared cell, reading-order takeover removes
+/// the losing owner and its sparse values for both small and huge historical declarations.
 #[test]
 fn incremental_spill_takeover_removes_sparse_old_ownership() {
     for end in [c("C2"), CellRef::new(16_000, 999)] {
         let mut t = T::new();
         let sh = t.wb.sheet_mut(0).unwrap();
         sh.set_value(c("J1"), Value::Number(1.0));
-        for (at, text, value, end) in [("B1", "=SEQUENCE(J1)", 1.0, c("B1")), ("A2", "=SEQUENCE(1,3)", 100.0, end)] {
+        for (at, text, value, end) in [("B1", "=SEQUENCE(J1)", 1.0, c("B2")), ("A2", "=SEQUENCE(1,3)", 100.0, end)] {
             let mut formula = Formula::new(text);
             formula.dynamic = true;
             let mut cell = Cell::formula(formula);
@@ -3526,5 +3527,41 @@ fn incremental_spill_takeover_removes_sparse_old_ownership() {
         for at in ["B1", "B2", "A2", "C2"] {
             assert_eq!(t.get(at), fresh.sheet(0).unwrap().value(c(at)), "{at}: incremental versus full");
         }
+    }
+}
+
+/// Growth into another owner's sparse hole preserves its range and saved values. A full
+/// recalculation may refresh those values, while retaining the same ownership priority.
+#[test]
+fn incremental_growth_respects_existing_sparse_cell_ownership() {
+    for end in [c("C2"), CellRef::new(16_000, 999)] {
+        let mut t = T::new();
+        let sh = t.wb.sheet_mut(0).unwrap();
+        sh.set_value(c("J1"), Value::Number(1.0));
+        for (at, text, value, end) in [("B1", "=SEQUENCE(J1)", 1.0, c("B1")), ("A2", "=SEQUENCE(1,3)", 100.0, end)] {
+            let mut formula = Formula::new(text);
+            formula.dynamic = true;
+            let mut cell = Cell::formula(formula);
+            cell.value = Value::Number(value);
+            sh.set_cell(c(at), cell);
+            sh.spill_ranges.insert(c(at), gridcraft_core::RangeRef::new(c(at), end));
+        }
+        sh.spill.insert(c("C2"), Value::Number(102.0));
+        t.calc.rebuild(&t.wb);
+        t.set("J1", "2");
+        assert_eq!(t.get("B1"), Value::Error(CellError::Spill));
+        assert_eq!(t.get("B2"), Value::Empty);
+        assert_eq!(t.get("A2"), Value::Number(100.0));
+        assert_eq!(t.get("C2"), Value::Number(102.0));
+        assert_eq!(t.wb.sheet(0).unwrap().spill_ranges.get(&c("A2")), Some(&gridcraft_core::RangeRef::new(c("A2"), end)));
+        assert!(!t.wb.sheet(0).unwrap().spill_ranges.contains_key(&c("B1")));
+        let mut fresh = t.wb.clone();
+        Calc::new().recalc_all(&mut fresh);
+        let sh = fresh.sheet(0).unwrap();
+        assert_eq!(sh.value(c("B1")), Value::Error(CellError::Spill));
+        assert_eq!(sh.value(c("A2")), Value::Number(1.0));
+        assert_eq!(sh.value(c("B2")), Value::Number(2.0));
+        assert_eq!(sh.value(c("C2")), Value::Number(3.0));
+        assert_eq!(sh.spill_ranges.get(&c("A2")), Some(&gridcraft_core::RangeRef::new(c("A2"), c("C2"))));
     }
 }

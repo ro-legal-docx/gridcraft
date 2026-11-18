@@ -912,8 +912,28 @@ fn spill_is_blocked(
     end.row >= gridcraft_core::MAX_ROWS
         || end.col >= gridcraft_core::MAX_COLS
         || range.iter().any(|cell| cell != anchor.1 && (sheet.cells.has(cell) || (sheet.spill.contains_key(&cell) && !outranked(cell))))
+        || declared_owner_blocks(sheet, (anchor, now), range, standing, owners)
         || sheet.merges.iter().any(|merge| merge.intersects(&range))
         || sheet.tables.iter().any(|table| table.range.contains(anchor.1))
+}
+
+/// Sparse declarations own their missing followers too. Existing per-cell ownership is
+/// retained; reading order breaks a tie only when both declarations already claim a cell.
+fn declared_owner_blocks(
+    sheet: &gridcraft_model::Sheet,
+    (anchor, now): (Key, Option<RangeRef>),
+    range: RangeRef,
+    standing: &Standing,
+    owners: &[CellRef],
+) -> bool {
+    owners.iter().any(|owner| {
+        if *owner == anchor.1 {
+            return false;
+        }
+        let Some(area) = sheet.spill_ranges.get(owner) else { return false };
+        let Some(shared) = area.intersection(&range) else { return false };
+        shared.iter().any(|cell| cell != anchor.1 && !standing.outranks_at((anchor, now), ((anchor.0, *owner), Some(*area)), cell))
+    })
 }
 
 /// Indexes stored declarations, including cached holes; built lazily only when a pass places arrays.
