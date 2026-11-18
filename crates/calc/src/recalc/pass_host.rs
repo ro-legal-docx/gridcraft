@@ -182,26 +182,14 @@ fn spill_blocked(host: &PassHost<'_>, (sheet, anchor): Key, a: &Array) -> bool {
     let default = super::Standing::default();
     let standing = host.standing.unwrap_or(&default);
     let own = sh.spill_ranges.get(&anchor);
-    let spilled_over = |c: CellRef| {
-        !own.is_some_and(|o| o.contains(c))
-            && sh.spill_ranges.iter().any(|(o, r)| {
-                // A formula or Python cell recalculated in this pass lays its array out again.
-                *o != anchor
-                    && r.contains(c)
-                    && !host.exprs.contains_key(&(sheet, *o))
-                    && !host.python.contains_key(&(sheet, *o))
-                    && standing.outranks_at(((sheet, *o), Some(*r)), ((sheet, anchor), own.copied()), c)
-            })
-    };
+    // Pending formulas and Python cells may replace their declarations in this pass.
+    owners.retain(|owner| !host.exprs.contains_key(&(sheet, *owner)) && !host.python.contains_key(&(sheet, *owner)));
     let declared_blocked = if host.preserve_cached_arrays {
-        owners.into_iter().any(|owner| {
-            owner != anchor
-                && sh.spill_ranges.get(&owner).is_some_and(|area| super::spill_area_intersects(*area, range, anchor))
-                && !host.exprs.contains_key(&(sheet, owner))
-                && !host.python.contains_key(&(sheet, owner))
-        })
+        owners
+            .iter()
+            .any(|owner| *owner != anchor && sh.spill_ranges.get(owner).is_some_and(|area| super::spill_area_intersects(*area, range, anchor)))
     } else {
-        sh.spill.range(range.start..=range.end).any(|(c, _)| range.contains(*c) && spilled_over(*c))
+        super::declared_owner_blocks(sh, ((sheet, anchor), own.copied()), range, standing, &owners)
     };
     end.row >= gridcraft_core::MAX_ROWS
         || end.col >= gridcraft_core::MAX_COLS
