@@ -922,7 +922,7 @@ dependencies = [
 [[package]]
 name = "craft-cfb"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=3b8e426a260695af840a2cd79a064d40778f939e#3b8e426a260695af840a2cd79a064d40778f939e"
+source = "git+https://github.com/ro-legal-docx/craft-libs?rev=1527914da3f1e3b0d9c8439cd38f64d4bcd8011b#1527914da3f1e3b0d9c8439cd38f64d4bcd8011b"
 
 [[package]]
 name = "craft-cfb"
@@ -1088,7 +1088,7 @@ source = "git+https://github.com/storytold/craft-libs?rev=010702ee9b030844c85293
 [[package]]
 name = "craft-sheet"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=3b8e426a260695af840a2cd79a064d40778f939e#3b8e426a260695af840a2cd79a064d40778f939e"
+source = "git+https://github.com/ro-legal-docx/craft-libs?rev=1527914da3f1e3b0d9c8439cd38f64d4bcd8011b#1527914da3f1e3b0d9c8439cd38f64d4bcd8011b"
 
 [[package]]
 name = "craft-sheet"
@@ -1195,10 +1195,10 @@ dependencies = [
 [[package]]
 name = "craft-xls"
 version = "0.1.0"
-source = "git+https://github.com/storytold/craft-libs?rev=3b8e426a260695af840a2cd79a064d40778f939e#3b8e426a260695af840a2cd79a064d40778f939e"
+source = "git+https://github.com/ro-legal-docx/craft-libs?rev=1527914da3f1e3b0d9c8439cd38f64d4bcd8011b#1527914da3f1e3b0d9c8439cd38f64d4bcd8011b"
 dependencies = [
- "craft-cfb 0.1.0 (git+https://github.com/storytold/craft-libs?rev=3b8e426a260695af840a2cd79a064d40778f939e)",
- "craft-sheet 0.1.0 (git+https://github.com/storytold/craft-libs?rev=3b8e426a260695af840a2cd79a064d40778f939e)",
+ "craft-cfb 0.1.0 (git+https://github.com/ro-legal-docx/craft-libs?rev=1527914da3f1e3b0d9c8439cd38f64d4bcd8011b)",
+ "craft-sheet 0.1.0 (git+https://github.com/ro-legal-docx/craft-libs?rev=1527914da3f1e3b0d9c8439cd38f64d4bcd8011b)",
  "md-5",
  "miniz_oxide 0.9.1",
  "sha1 0.10.7",
